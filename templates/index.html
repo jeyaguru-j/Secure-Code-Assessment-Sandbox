@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Befunge Royale | Arena</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+</head>
+<body class="bg-gray-900 text-white font-mono h-screen flex flex-col">
+
+    <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-green-400 tracking-wider">>> BEFUNGE_ROYALE_93</h1>
+            
+            <div class="flex items-center gap-3 bg-black px-4 py-1 rounded border border-gray-600">
+                <span class="text-gray-400 text-xs uppercase">Operator</span>
+                <span class="font-bold text-white text-sm">{{ user.username }}</span>
+                <div id="score-display" class="pl-3 border-l border-gray-600 text-yellow-400 font-bold text-sm">
+                    Score: {{ user.score }}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div id="contest-timer" class="text-xl font-mono text-red-500 font-bold border border-red-900/50 px-4 py-1 rounded bg-black shadow-[0_0_10px_rgba(220,38,38,0.2)]">
+                00:00:00
+            </div>
+            <a href="/logout" class="bg-gray-700 hover:bg-red-900 text-white text-xs px-3 py-2 rounded transition-colors uppercase font-bold tracking-wide">Logout</a>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <div class="w-1/3 bg-gray-800 border-r border-gray-700 flex flex-col">
+            
+            <div class="flex border-b border-gray-700">
+                <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">
+                    PROBLEM SET
+                </button>
+                <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">
+                    MY SUBMISSIONS
+                </button>
+            </div>
+
+            <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <div id="question-list" class="space-y-4">
+                    </div>
+            </div>
+
+            <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-black text-gray-400 border-b border-gray-800">
+                        <tr>
+                            <th class="p-3 w-20">Time</th>
+                            <th class="p-3">Problem</th>
+                            <th class="p-3 text-right">Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="submission-list">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="w-1/3 flex flex-col border-r border-gray-700 relative">
+            <div class="flex-1 text-base">
+                <textarea id="code-editor">v
+> "Hello World" ,,,,,,,,,,, @</textarea>
+            </div>
+            <div class="p-3 bg-gray-800 flex gap-3 border-t border-gray-700">
+                <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-2 rounded font-bold transition-colors shadow-lg">
+                    ▶ RUN CODE
+                </button>
+                <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-2 rounded font-bold transition-colors shadow-lg border border-green-500">
+                    ★ SUBMIT SOLUTION
+                </button>
+            </div>
+        </div>
+
+        <div class="w-1/3 flex flex-col bg-gray-800">
+            <div class="h-1/2 p-4 border-b border-gray-700 flex flex-col bg-black/50">
+                <div class="mb-2">
+                    <h3 class="text-xs text-gray-500 font-bold mb-1 uppercase">Standard Input (Stdin)</h3>
+                    <input id="custom-input" type="text" class="bg-gray-900 border border-gray-700 text-green-400 p-2 w-full font-mono text-sm rounded focus:border-green-500 focus:outline-none" placeholder="Enter input here...">
+                </div>
+                <div class="flex-1 flex flex-col min-h-0">
+                    <h3 class="text-xs text-gray-500 font-bold mb-1 uppercase">Console Output</h3>
+                    <pre id="output-console" class="bg-black text-green-500 p-3 flex-1 font-mono text-sm overflow-auto border border-gray-800 rounded">Waiting for execution...</pre>
+                </div>
+            </div>
+            
+            <div class="h-1/2 p-4 overflow-y-auto bg-gray-800">
+                <h3 class="text-xs text-yellow-500 font-bold mb-3 uppercase tracking-widest border-b border-gray-700 pb-1">Live Leaderboard</h3>
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-gray-500 border-b border-gray-700">
+                            <th class="pb-2 pl-2">Rank</th>
+                            <th class="pb-2">User</th>
+                            <th class="pb-2 text-right pr-2">Points</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- EDITOR CONFIG ---
+        var editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+            lineNumbers: true,
+            theme: "monokai",
+            mode: "text",
+            lineWrapping: true
+        });
+
+        // --- STATE ---
+        let currentQuestionId = null;
+        let contestRunning = false;
+        let contestQuestions = []; 
+
+        // --- UTILS ---
+        function formatTime(seconds) {
+            if (seconds <= 0) return "ENDED";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+
+        // --- TABS LOGIC ---
+        function switchTab(tabName) {
+            const qView = document.getElementById('view-questions');
+            const sView = document.getElementById('view-submissions');
+            const qBtn = document.getElementById('tab-btn-questions');
+            const sBtn = document.getElementById('tab-btn-submissions');
+
+            if(tabName === 'questions') {
+                qView.classList.remove('hidden');
+                sView.classList.add('hidden');
+                qBtn.className = "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors";
+                sBtn.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
+            } else {
+                qView.classList.add('hidden');
+                sView.classList.remove('hidden');
+                qBtn.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
+                sBtn.className = "flex-1 py-3 text-sm font-bold text-purple-400 bg-gray-800 border-b-2 border-purple-500 transition-colors";
+                loadSubmissions();
+            }
+        }
+
+        async function loadSubmissions() {
+            const container = document.getElementById('submission-list');
+            container.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Loading...</td></tr>';
+            try {
+                const res = await fetch('/api/my_submissions');
+                const subs = await res.json();
+                if(subs.length === 0) {
+                    container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-600 italic">No submissions yet.</td></tr>';
+                    return;
+                }
+                container.innerHTML = subs.map(s => {
+                    let colorClass = "text-gray-400";
+                    if(s.status === 'passed') colorClass = "text-green-400 font-bold";
+                    else if(s.details.includes("TLE")) colorClass = "text-yellow-500 font-bold";
+                    else colorClass = "text-red-400";
+                    return `
+                    <tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors">
+                        <td class="p-3 text-gray-500 font-mono">${s.time}</td>
+                        <td class="p-3 font-bold text-white">${s.title}</td>
+                        <td class="p-3 text-right ${colorClass}">${s.details}</td>
+                    </tr>`;
+                }).join('');
+            } catch(err) { console.error(err); }
+        }
+
+        // --- CORE SYNC LOOP ---
+        async function syncState() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const timerElem = document.getElementById('contest-timer');
+                if(timerElem) timerElem.innerText = formatTime(data.remaining);
+                
+                if (data.running && !contestRunning) {
+                    contestRunning = true;
+                    loadQuestions(); 
+                    document.getElementById('output-console').innerText = ">>> SYSTEM ONLINE.\n>>> CONTEST STARTED.";
+                } else if (!data.running && contestRunning) {
+                    contestRunning = false;
+                    document.getElementById('question-list').innerHTML = "<div class='p-4 text-red-500 font-bold border border-red-500 rounded bg-red-900/20 text-center'>CONTEST HAS ENDED</div>";
+                    alert("TIME IS UP!");
+                } else if (!data.running && !contestRunning) {
+                    document.getElementById('question-list').innerHTML = `
+                        <div class='p-8 text-center text-gray-500 animate-pulse'>
+                            <div class="text-4xl mb-2">🔒</div>
+                            <h2 class='text-lg font-bold text-yellow-500'>AWAITING HOST</h2>
+                            <p class="mt-2 text-xs">Problem set encrypted.</p>
+                        </div>`;
+                }
+            } catch (err) { console.error("Sync Error:", err); }
+        }
+
+        async function loadQuestions() {
+            if (!contestRunning) return; 
+            try {
+                const res = await fetch('/api/questions');
+                const questions = await res.json();
+                window.contestQuestions = questions; 
+                const container = document.getElementById('question-list');
+                if (questions.length === 0) return;
+                container.innerHTML = questions.map(q => `
+                    <div id="q-card-${q.id}" 
+                         class="question-item p-4 bg-gray-700 rounded cursor-pointer mb-3 border-l-4 border-gray-500 hover:bg-gray-600 transition-all duration-200" 
+                         onclick="selectQuestion(${q.id})">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-white text-base">${q.title}</span>
+                            <span class="text-xs bg-black text-blue-300 border border-blue-900 px-2 py-1 rounded font-mono">${q.points} PTS</span>
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed font-sans">${q.desc}</p>
+                    </div>
+                `).join('');
+                if(currentQuestionId) highlightCard(currentQuestionId);
+            } catch (err) { console.error("Load Questions Error:", err); }
+        }
+
+        function selectQuestion(id) {
+            currentQuestionId = id;
+            highlightCard(id);
+            const q = window.contestQuestions.find(item => item.id === id);
+            if (q) document.getElementById('custom-input').value = q.s_in;
+        }
+
+        function highlightCard(id) {
+            document.querySelectorAll('.question-item').forEach(el => {
+                el.classList.remove('bg-gray-600', 'border-yellow-400', 'scale-[1.02]', 'shadow-lg');
+                el.classList.add('bg-gray-700', 'border-gray-500');
+            });
+            const activeCard = document.getElementById(`q-card-${id}`);
+            if(activeCard) {
+                activeCard.classList.remove('bg-gray-700', 'border-gray-500');
+                activeCard.classList.add('bg-gray-600', 'border-yellow-400', 'scale-[1.02]', 'shadow-lg');
+            }
+        }
+
+        async function runCode() {
+            const code = editor.getValue();
+            const input = document.getElementById('custom-input').value;
+            document.getElementById('output-console').innerText = "Running...";
+            try {
+                const res = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({code, input})
+                });
+                const data = await res.json();
+                document.getElementById('output-console').innerText = data.output;
+            } catch (err) { document.getElementById('output-console').innerText = "Error: Connection Failed"; }
+        }
+
+        async function submitCode() {
+            if(!contestRunning) return alert("Contest is not active.");
+            if(!currentQuestionId) return alert("Select a question first!");
+            const submitBtn = document.activeElement; 
+            const originalText = submitBtn.innerText;
+            submitBtn.innerText = "Judging...";
+            
+            try {
+                const res = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        question_id: currentQuestionId, 
+                        code: editor.getValue()
+                    })
+                });
+                const data = await res.json();
+                
+                if(data.status === 'passed') {
+                    alert("✅ PASSED! Points Awarded.");
+                    document.getElementById('score-display').innerText = `Score: ${data.new_score}`;
+                    updateLeaderboard();
+                    if(document.getElementById('view-submissions').classList.contains('hidden') === false) {
+                        loadSubmissions(); 
+                    }
+                } else if (data.status === 'already_solved') {
+                    alert("⚠️ Already Solved.");
+                } else if (data.status === 'error') {
+                     alert("❌ Error: " + data.message);
+                } else {
+                    alert("❌ FAILED: " + data.details);
+                    if(document.getElementById('view-submissions').classList.contains('hidden') === false) {
+                        loadSubmissions();
+                    }
+                }
+            } catch (err) { alert("Network Error."); }
+            submitBtn.innerText = originalText;
+        }
+
+        async function updateLeaderboard() {
+            try {
+                const res = await fetch('/api/leaderboard');
+                const users = await res.json();
+                document.getElementById('leaderboard-body').innerHTML = users.map((u, index) => `
+                    <tr class="border-b border-gray-700 hover:bg-gray-700 transition-colors">
+                        <td class="py-2 pl-2 text-gray-400 font-mono">#${index+1}</td>
+                        <td class="py-2 font-bold ${index===0 ? 'text-yellow-400' : 'text-gray-300'}">${u.username}</td>
+                        <td class="text-right pr-2">
+                            <div class="font-bold text-green-400">${u.score}</div>
+                            <div class="text-[10px] text-gray-500">${u.time.toFixed(1)}s</div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        setInterval(syncState, 1000);       
+        setInterval(updateLeaderboard, 5000); 
+        syncState();
+    </script>
+</body>
+</html>

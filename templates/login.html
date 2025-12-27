@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-mono h-screen flex justify-center items-center">
+
+    <div class="w-full max-w-md p-8 bg-black border border-gray-700 rounded shadow-2xl">
+        <h2 class="text-2xl font-bold mb-6 text-center">
+            {% if role == 'admin' %}
+                <span class="text-red-500">>> ADMIN_ACCESS</span>
+            {% else %}
+                <span class="text-green-500">>> PLAYER_LOGIN</span>
+            {% endif %}
+        </h2>
+
+        {% if error %}
+        <div class="bg-red-900/50 text-red-200 p-2 mb-4 text-center text-sm border border-red-800">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="hidden" name="role" value="{{ role }}">
+            
+            <div class="mb-4">
+                <label class="block text-gray-500 mb-1 text-sm">Username</label>
+                <input name="username" type="text" class="w-full bg-gray-800 border border-gray-600 p-2 text-white focus:outline-none focus:border-white transition-colors" required autofocus>
+            </div>
+            
+            <div class="mb-8">
+                <label class="block text-gray-500 mb-1 text-sm">Password</label>
+                <input name="password" type="password" class="w-full bg-gray-800 border border-gray-600 p-2 text-white focus:outline-none focus:border-white transition-colors" required>
+            </div>
+
+            <button type="submit" class="w-full py-3 font-bold rounded transition-colors
+                {% if role == 'admin' %} bg-red-700 hover:bg-red-600 text-white
+                {% else %} bg-green-700 hover:bg-green-600 text-white {% endif %}">
+                AUTHENTICATE
+            </button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <a href="/" class="text-gray-600 text-xs hover:text-white">← Return to Home</a>
+        </div>
+    </div>
+
+</body>
+</html>

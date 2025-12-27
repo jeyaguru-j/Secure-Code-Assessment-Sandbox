@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Control | Befunge Royale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-mono min-h-screen p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-end border-b border-gray-700 pb-4 mb-8">
+            <h1 class="text-3xl font-bold text-red-500 tracking-tighter">>> ADMIN_TERMINAL</h1>
+            <div class="text-right">
+                <span class="text-gray-500 text-sm">Logged in as: <span class="text-white font-bold">{{ admin_name }}</span></span>
+                <a href="/logout" class="ml-4 text-xs text-red-400 hover:text-white underline uppercase">Logout</a>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded mb-8 shadow-lg">
+            <h2 class="text-xl font-bold mb-4 text-blue-400 border-b border-gray-700 pb-2">CONTEST CONTROLS</h2>
+            
+            <div class="flex gap-4 items-center">
+                <form action="/admin/control" method="POST" class="flex items-center gap-2">
+                    <input type="hidden" name="action" value="start">
+                    <input type="number" name="value" value="60" class="bg-gray-900 border border-gray-600 p-2 rounded w-20 text-center focus:border-green-500 focus:outline-none" placeholder="Min">
+                    <button type="submit" class="bg-green-700 hover:bg-green-600 text-white px-4 py-2 rounded font-bold shadow-lg transition-colors">
+                        INIT_CONTEST
+                    </button>
+                </form>
+
+                <span class="text-gray-600 text-2xl">|</span>
+
+                <form action="/admin/control" method="POST" class="flex items-center gap-2">
+                    <input type="hidden" name="action" value="add_time">
+                    <input type="number" name="value" value="10" class="bg-gray-900 border border-gray-600 p-2 rounded w-20 text-center focus:border-blue-500 focus:outline-none">
+                    <button type="submit" class="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded font-bold shadow-lg transition-colors">
+                        ADD_TIME
+                    </button>
+                </form>
+
+                <span class="text-gray-600 text-2xl">|</span>
+
+                <form action="/admin/control" method="POST">
+                    <input type="hidden" name="action" value="stop">
+                    <button type="submit" class="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded font-bold shadow-lg transition-colors border border-red-500">
+                        KILL_SWITCH
+                    </button>
+                </form>
+                </form>
+
+                <span class="text-gray-600 text-2xl">|</span>
+
+                <form action="/admin/reset" method="POST" onsubmit="return confirm('DANGER: This will wipe ALL scores and submissions for Round 2. Users and Questions will remain. Are you sure?');">
+                    <button type="submit" class="bg-gray-900 hover:bg-red-950 text-red-500 border border-red-800 px-4 py-2 rounded font-bold shadow-lg transition-colors text-xs uppercase tracking-widest">
+                        ⚠ Reset Scores
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-4 text-yellow-400 border-b border-gray-700 pb-2">INJECT NEW PROBLEM</h2>
+            <form method="POST" class="space-y-4">
+                
+                <div>
+                    <label class="block text-gray-400 mb-1 text-sm uppercase font-bold">Title</label>
+                    <input name="title" required class="w-full bg-gray-900 border border-gray-600 p-2 rounded focus:border-yellow-400 focus:outline-none" placeholder="e.g. The Fibonnaci Stack">
+                </div>
+                <div>
+                    <label class="block text-gray-400 mb-1 text-sm uppercase font-bold">Description</label>
+                    <textarea name="desc" required class="w-full bg-gray-900 border border-gray-600 p-2 rounded h-24 focus:border-yellow-400 focus:outline-none" placeholder="Problem details..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-gray-400 mb-1 text-sm uppercase font-bold">Points</label>
+                    <input name="points" type="number" required class="w-full bg-gray-900 border border-gray-600 p-2 rounded focus:border-yellow-400 focus:outline-none" placeholder="100">
+                </div>
+
+                <div class="p-4 bg-gray-700/50 rounded border border-gray-600">
+                    <h3 class="text-sm font-bold text-blue-300 mb-2 uppercase tracking-wider">Visible Sample Case</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-400 mb-1 text-xs">Sample Input (Optional)</label>
+                            <input name="s_in" class="w-full bg-gray-900 border border-gray-600 p-2 rounded font-mono text-sm focus:border-blue-400 focus:outline-none" placeholder="Leave empty if none">
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 mb-1 text-xs">Sample Output</label>
+                            <input name="s_out" required class="w-full bg-gray-900 border border-gray-600 p-2 rounded font-mono text-sm focus:border-blue-400 focus:outline-none" placeholder="Required Output">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-gray-700/30 rounded border border-gray-600">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-bold text-red-300 uppercase tracking-wider">Hidden Test Cases (Grading)</h3>
+                        <button type="button" onclick="addTestCase()" class="text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-white transition-colors">+ Add Case</button>
+                    </div>
+                    
+                    <div id="test-case-container" class="space-y-2">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input name="hidden_in[]" class="w-full bg-gray-900 border border-gray-600 p-2 rounded font-mono text-sm focus:border-red-400 focus:outline-none" placeholder="Hidden Input (Empty for none)">
+                            <input name="hidden_out[]" class="w-full bg-gray-900 border border-gray-600 p-2 rounded font-mono text-sm focus:border-red-400 focus:outline-none" placeholder="Expected Output">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-green-700 hover:bg-green-600 text-white py-3 rounded font-bold mt-4 border border-green-500 shadow-lg transition-transform active:scale-[0.99]">
+                    UPLOAD TO DATABASE
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded shadow-lg">
+            <h2 class="text-xl font-bold mb-4 text-purple-400 border-b border-gray-700 pb-2">DATABASE CONTENTS</h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-600 text-sm uppercase">
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Title</th>
+                            <th class="p-3">Points</th>
+                            <th class="p-3">Sample In</th>
+                            <th class="p-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in questions %}
+                        <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
+                            <td class="p-3 text-gray-500 font-mono">#{{ q.id }}</td>
+                            <td class="p-3 font-bold text-white">{{ q.title }}</td>
+                            <td class="p-3 text-yellow-400 font-mono">{{ q.points }}</td>
+                            <td class="p-3 text-xs text-gray-500 font-mono">{{ q.sample_input if q.sample_input else "(none)" }}</td>
+                            <td class="p-3 text-right">
+                                <form action="/admin/delete/{{ q.id }}" method="POST" onsubmit="return confirm('WARNING: Deleting this question will wipe all associated user submissions. Continue?');">
+                                    <button type="submit" class="text-red-500 hover:text-red-200 hover:bg-red-900/30 px-3 py-1 rounded transition-colors text-sm font-bold">
+                                        [DELETE]
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-gray-500 italic border border-dashed border-gray-700 rounded m-4">
+                                Database is empty.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function addTestCase() {
+            const container = document.getElementById('test-case-container');
+            const div = document.createElement('div');
+            div.className = "grid grid-cols-2 gap-4";
+            div.innerHTML = `
+                <input name="hidden_in[]" class="w-full bg-gray-900 border border-gray-600 p-2 rounded font-mono text-sm focus:border-red-400 focus:outline-none" placeholder="Hidden Input (Empty for none)">
+                <input name="hidden_out[]" class="w-full bg-gray-900 border border-gray-600 p-2 rounded font-mono text-sm focus:border-red-400 focus:outline-none" placeholder="Expected Output">
+            `;
+            container.appendChild(div);
+        }
+    </script>
+</body>
+</html>
