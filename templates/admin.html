@@ -19,7 +19,8 @@
         <div class="bg-gray-800 border border-gray-700 p-6 rounded mb-8 shadow-lg">
             <h2 class="text-xl font-bold mb-4 text-blue-400 border-b border-gray-700 pb-2">CONTEST CONTROLS</h2>
             
-            <div class="flex gap-4 items-center">
+            <div class="flex gap-4 items-center flex-wrap">
+                
                 <form action="/admin/control" method="POST" class="flex items-center gap-2">
                     <input type="hidden" name="action" value="start">
                     <input type="number" name="value" value="60" class="bg-gray-900 border border-gray-600 p-2 rounded w-20 text-center focus:border-green-500 focus:outline-none" placeholder="Min">
@@ -46,17 +47,27 @@
                         KILL_SWITCH
                     </button>
                 </form>
+
+                <span class="text-gray-600 text-2xl">|</span>
+
+                <form action="/admin/reset" method="POST" onsubmit="return confirm('DANGER: This will wipe ALL scores and submissions. Continue?');">
+                    <button type="submit" class="bg-gray-900 hover:bg-red-950 text-red-500 border border-red-800 px-4 py-2 rounded font-bold shadow-lg transition-colors">
+                        ⚠ RESET
+                    </button>
                 </form>
 
                 <span class="text-gray-600 text-2xl">|</span>
 
-                <form action="/admin/reset" method="POST" onsubmit="return confirm('DANGER: This will wipe ALL scores and submissions for Round 2. Users and Questions will remain. Are you sure?');">
-                    <button type="submit" class="bg-gray-900 hover:bg-red-950 text-red-500 border border-red-800 px-4 py-2 rounded font-bold shadow-lg transition-colors text-xs uppercase tracking-widest">
-                        ⚠ Reset Scores
+                <form action="/admin/download_leaderboard" method="POST">
+                    <button type="submit" class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded font-bold shadow-lg transition-colors flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        CSV
                     </button>
                 </form>
-            </div>
-        </div>
+
+            </div> </div> 
 
         <div class="bg-gray-800 border border-gray-700 p-6 rounded shadow-lg mb-8">
             <h2 class="text-xl font-bold mb-4 text-yellow-400 border-b border-gray-700 pb-2">INJECT NEW PROBLEM</h2>

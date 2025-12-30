@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response, stream_with_context
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash
 from befunge_engine import BefungeInterpreter
 import time
 import os
+import csv
+import io
 from datetime import datetime
 
 app = Flask(__name__)
@@ -80,12 +82,16 @@ def login():
         if target_role == 'admin':
             user = Admin.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
+                # SECURITY FIX: Wipe any previous session data (like student IDs)
+                session.clear() 
                 session['admin_id'] = user.id
                 session['username'] = user.username
                 return redirect('/admin')
         else:
             user = User.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
+                # SECURITY FIX: Wipe any previous session data (like admin IDs)
+                session.clear() 
                 session['user_id'] = user.id
                 session['username'] = user.username
                 return redirect('/contest')
@@ -318,6 +324,63 @@ def reset_contest_data():
         print(f"RESET ERROR: {e}")
         
     return redirect('/admin')
+
+@app.route('/admin/download_leaderboard', methods=['POST'])
+def download_leaderboard():
+    if 'admin_id' not in session:
+        return redirect('/')
+
+    def generate():
+        data = io.StringIO()
+        writer = csv.writer(data)
+
+        # 1. Fetch all Questions to build the Header
+        # We order by ID so columns are consistent (Q1, Q2, Q3...)
+        questions = Question.query.order_by(Question.id).all()
+        question_titles = [q.title for q in questions]
+        question_ids = [q.id for q in questions]
+
+        # Header: Rank, Username, Score, [Question 1], [Question 2], ...
+        header_row = ['Rank', 'Username', 'Score'] + question_titles
+        writer.writerow(header_row)
+        yield data.getvalue()
+        data.seek(0)
+        data.truncate(0)
+
+        # 2. Fetch all Users (ranked)
+        users = User.query.order_by(User.score.desc(), User.total_time.asc()).all()
+
+        # 3. Build Rows
+        for rank, user in enumerate(users):
+            row = [rank + 1, user.username, user.score]
+            
+            # For each question, find the user's BEST (passed) submission time
+            for q_id in question_ids:
+                # Find a passed submission for this specific user & question
+                sub = Submission.query.filter_by(
+                    user_id=user.id, 
+                    question_id=q_id, 
+                    status='passed'
+                ).first() # Since we don't store multiple passes, the first one found is fine.
+                          # Ideally, you'd sort by solve_time if users could re-submit for better time, 
+                          # but your logic locks it after first solve.
+                
+                if sub:
+                    # Format time as seconds (e.g., 120.5s)
+                    row.append(f"{round(sub.solve_time, 2)}")
+                else:
+                    # Not solved yet
+                    row.append("-")
+            
+            writer.writerow(row)
+            yield data.getvalue()
+            data.seek(0)
+            data.truncate(0)
+
+    response = Response(stream_with_context(generate()), mimetype='text/csv')
+    response.headers.set('Content-Disposition', 'attachment', filename='befunge_detailed_results.csv')
+    return response
+
 
 if __name__ == '__main__':
     with app.app_context():
