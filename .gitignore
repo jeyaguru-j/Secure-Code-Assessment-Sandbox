@@ -1,2 +1,8 @@
 venv/
+instance/
+*.db
 __pycache__/
+admins.json
+participants.json
+instance/contest.db
+.env
