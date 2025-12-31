@@ -8,7 +8,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
 </head>
-<body class="bg-gray-900 text-white font-mono h-screen flex flex-col">
+<body class="bg-gray-900 text-white font-mono h-screen flex flex-col transition-shadow duration-300" id="main-body">
+
+    <div id="violation-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex justify-center items-center backdrop-blur-sm">
+        <div class="bg-gray-900 border-2 border-red-600 rounded-lg p-8 max-w-md text-center shadow-[0_0_50px_rgba(220,38,38,0.5)]">
+            <div class="text-6xl mb-4">⚠️</div>
+            <h2 class="text-3xl font-bold text-red-500 mb-2 tracking-widest">SYSTEM ALERT</h2>
+            <p class="text-white text-lg mb-6">
+                FOCUS LOST. <br>
+                <span class="text-red-400 text-sm">Tab switching is monitored. This incident has been logged.</span>
+            </p>
+            <button onclick="closeViolationModal()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-8 rounded border border-red-500 transition-transform active:scale-95 uppercase tracking-wider">
+                ACKNOWLEDGE
+            </button>
+        </div>
+    </div>
 
     <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10">
         <div class="flex items-center gap-4">
@@ -34,7 +48,6 @@
     <div class="flex flex-1 overflow-hidden">
         
         <div class="w-1/3 bg-gray-800 border-r border-gray-700 flex flex-col">
-            
             <div class="flex border-b border-gray-700">
                 <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">
                     PROBLEM SET
@@ -45,8 +58,7 @@
             </div>
 
             <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                <div id="question-list" class="space-y-4">
-                    </div>
+                <div id="question-list" class="space-y-4"></div>
             </div>
 
             <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900">
@@ -58,8 +70,7 @@
                             <th class="p-3 text-right">Result</th>
                         </tr>
                     </thead>
-                    <tbody id="submission-list">
-                        </tbody>
+                    <tbody id="submission-list"></tbody>
                 </table>
             </div>
         </div>
@@ -108,20 +119,14 @@
     </div>
 
     <script>
-        // --- EDITOR CONFIG ---
         var editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
-            lineNumbers: true,
-            theme: "monokai",
-            mode: "text",
-            lineWrapping: true
+            lineNumbers: true, theme: "monokai", mode: "text", lineWrapping: true
         });
 
-        // --- STATE ---
         let currentQuestionId = null;
         let contestRunning = false;
         let contestQuestions = []; 
 
-        // --- UTILS ---
         function formatTime(seconds) {
             if (seconds <= 0) return "ENDED";
             const h = Math.floor(seconds / 3600);
@@ -130,7 +135,6 @@
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
         }
 
-        // --- TABS LOGIC ---
         function switchTab(tabName) {
             const qView = document.getElementById('view-questions');
             const sView = document.getElementById('view-submissions');
@@ -138,13 +142,11 @@
             const sBtn = document.getElementById('tab-btn-submissions');
 
             if(tabName === 'questions') {
-                qView.classList.remove('hidden');
-                sView.classList.add('hidden');
+                qView.classList.remove('hidden'); sView.classList.add('hidden');
                 qBtn.className = "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors";
                 sBtn.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
             } else {
-                qView.classList.add('hidden');
-                sView.classList.remove('hidden');
+                qView.classList.add('hidden'); sView.classList.remove('hidden');
                 qBtn.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
                 sBtn.className = "flex-1 py-3 text-sm font-bold text-purple-400 bg-gray-800 border-b-2 border-purple-500 transition-colors";
                 loadSubmissions();
@@ -166,17 +168,11 @@
                     if(s.status === 'passed') colorClass = "text-green-400 font-bold";
                     else if(s.details.includes("TLE")) colorClass = "text-yellow-500 font-bold";
                     else colorClass = "text-red-400";
-                    return `
-                    <tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors">
-                        <td class="p-3 text-gray-500 font-mono">${s.time}</td>
-                        <td class="p-3 font-bold text-white">${s.title}</td>
-                        <td class="p-3 text-right ${colorClass}">${s.details}</td>
-                    </tr>`;
+                    return `<tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors"><td class="p-3 text-gray-500 font-mono">${s.time}</td><td class="p-3 font-bold text-white">${s.title}</td><td class="p-3 text-right ${colorClass}">${s.details}</td></tr>`;
                 }).join('');
             } catch(err) { console.error(err); }
         }
 
-        // --- CORE SYNC LOOP ---
         async function syncState() {
             try {
                 const res = await fetch('/api/status');
@@ -212,9 +208,7 @@
                 const container = document.getElementById('question-list');
                 if (questions.length === 0) return;
                 container.innerHTML = questions.map(q => `
-                    <div id="q-card-${q.id}" 
-                         class="question-item p-4 bg-gray-700 rounded cursor-pointer mb-3 border-l-4 border-gray-500 hover:bg-gray-600 transition-all duration-200" 
-                         onclick="selectQuestion(${q.id})">
+                    <div id="q-card-${q.id}" class="question-item p-4 bg-gray-700 rounded cursor-pointer mb-3 border-l-4 border-gray-500 hover:bg-gray-600 transition-all duration-200" onclick="selectQuestion(${q.id})">
                         <div class="flex justify-between items-center mb-2">
                             <span class="font-bold text-white text-base">${q.title}</span>
                             <span class="text-xs bg-black text-blue-300 border border-blue-900 px-2 py-1 rounded font-mono">${q.points} PTS</span>
@@ -282,18 +276,14 @@
                     alert("✅ PASSED! Points Awarded.");
                     document.getElementById('score-display').innerText = `Score: ${data.new_score}`;
                     updateLeaderboard();
-                    if(document.getElementById('view-submissions').classList.contains('hidden') === false) {
-                        loadSubmissions(); 
-                    }
+                    if(document.getElementById('view-submissions').classList.contains('hidden') === false) loadSubmissions(); 
                 } else if (data.status === 'already_solved') {
                     alert("⚠️ Already Solved.");
                 } else if (data.status === 'error') {
                      alert("❌ Error: " + data.message);
                 } else {
                     alert("❌ FAILED: " + data.details);
-                    if(document.getElementById('view-submissions').classList.contains('hidden') === false) {
-                        loadSubmissions();
-                    }
+                    if(document.getElementById('view-submissions').classList.contains('hidden') === false) loadSubmissions();
                 }
             } catch (err) { alert("Network Error."); }
             submitBtn.innerText = originalText;
@@ -314,6 +304,27 @@
                     </tr>
                 `).join('');
             } catch (err) { console.error(err); }
+        }
+
+        // --- UPDATED PROCTORING SYSTEM (THE EYE) ---
+        document.addEventListener("visibilitychange", function() {
+            if (document.visibilityState === 'hidden' && contestRunning) {
+                // 1. Report to server
+                reportViolation();
+                // 2. Show scary popup
+                document.getElementById('violation-modal').classList.remove('hidden');
+            }
+        });
+
+        function closeViolationModal() {
+            document.getElementById('violation-modal').classList.add('hidden');
+        }
+
+        async function reportViolation() {
+            try {
+                console.log("⚠️ VIOLATION DETECTED: FOCUS LOST");
+                await fetch('/api/report_violation', { method: 'POST' });
+            } catch(err) { console.error(err); }
         }
 
         setInterval(syncState, 1000);       

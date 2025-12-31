@@ -26,6 +26,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(128)) 
     score = db.Column(db.Integer, default=0)
     total_time = db.Column(db.Float, default=0.0)
+    warnings = db.Column(db.Integer, default=0) # NEW: Proctoring Warning Counter
 
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -82,16 +83,14 @@ def login():
         if target_role == 'admin':
             user = Admin.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
-                # SECURITY FIX: Wipe any previous session data (like student IDs)
-                session.clear() 
+                session.clear() # Security Wipe
                 session['admin_id'] = user.id
                 session['username'] = user.username
                 return redirect('/admin')
         else:
             user = User.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
-                # SECURITY FIX: Wipe any previous session data (like admin IDs)
-                session.clear() 
+                session.clear() # Security Wipe
                 session['user_id'] = user.id
                 session['username'] = user.username
                 return redirect('/contest')
@@ -112,7 +111,6 @@ def contest_ui():
     if 'user_id' not in session:
         return redirect('/login?role=participant')
     
-    # Fetch user to get live score
     user = User.query.get(session['user_id'])
     return render_template('index.html', user=user)
 
@@ -141,13 +139,29 @@ def get_questions():
 @app.route('/api/leaderboard')
 def get_leaderboard():
     users = User.query.order_by(User.score.desc(), User.total_time.asc()).limit(20).all()
-    return jsonify([{'username': u.username, 'score': u.score, 'time': round(u.total_time, 2)} for u in users])
+    return jsonify([{
+        'username': u.username, 
+        'score': u.score, 
+        'time': round(u.total_time, 2),
+        'warnings': u.warnings # NEW: Send warning count
+    } for u in users])
+
+@app.route('/api/report_violation', methods=['POST'])
+def report_violation():
+    if 'user_id' not in session: return jsonify({})
+    
+    user = User.query.get(session['user_id'])
+    if user:
+        user.warnings += 1
+        db.session.commit()
+        print(f"VIOLATION: User {user.username} switched tabs! Total: {user.warnings}")
+        
+    return jsonify({'status': 'logged', 'warnings': user.warnings})
 
 @app.route('/api/my_submissions')
 def my_submissions():
     if 'user_id' not in session: return jsonify([])
     
-    # Get submissions sorted by newest first
     subs = db.session.query(Submission, Question.title)\
         .join(Question, Submission.question_id == Question.id)\
         .filter(Submission.user_id == session['user_id'])\
@@ -215,7 +229,6 @@ def submit_code():
     )
     db.session.add(sub)
     
-    # Update Score (Only if perfect and not solved before)
     already_solved = Submission.query.filter_by(user_id=user_id, question_id=q_id, status='passed').count() > 1
     
     if is_perfect and not already_solved:
@@ -297,90 +310,47 @@ def delete_question(q_id):
         db.session.commit()
     return redirect('/admin')
 
-# --- Add this to the ADMIN ROUTES section in app.py ---
-
 @app.route('/admin/reset', methods=['POST'])
 def reset_contest_data():
     if 'admin_id' not in session: return redirect('/')
-    
-    # 1. Wipe all submissions
     try:
-        num_deleted = db.session.query(Submission).delete()
-        
-        # 2. Reset User Stats (Score & Time)
-        # We update all users in one go for efficiency
-        db.session.query(User).update({User.score: 0, User.total_time: 0.0})
-        
-        # 3. Optional: Stop the timer? 
-        # Usually good to stop it so round 2 starts fresh
+        db.session.query(Submission).delete()
+        db.session.query(User).update({User.score: 0, User.total_time: 0.0, User.warnings: 0})
         conf = get_config()
         conf.is_running = False
-        
         db.session.commit()
-        print(f"RESET COMPLETE: Deleted {num_deleted} submissions.")
-        
     except Exception as e:
         db.session.rollback()
-        print(f"RESET ERROR: {e}")
-        
     return redirect('/admin')
 
 @app.route('/admin/download_leaderboard', methods=['POST'])
 def download_leaderboard():
-    if 'admin_id' not in session:
-        return redirect('/')
-
+    if 'admin_id' not in session: return redirect('/')
     def generate():
         data = io.StringIO()
         writer = csv.writer(data)
-
-        # 1. Fetch all Questions to build the Header
-        # We order by ID so columns are consistent (Q1, Q2, Q3...)
         questions = Question.query.order_by(Question.id).all()
         question_titles = [q.title for q in questions]
         question_ids = [q.id for q in questions]
-
-        # Header: Rank, Username, Score, [Question 1], [Question 2], ...
-        header_row = ['Rank', 'Username', 'Score'] + question_titles
+        
+        header_row = ['Rank', 'Username', 'Score', 'Warnings'] + question_titles
         writer.writerow(header_row)
         yield data.getvalue()
-        data.seek(0)
-        data.truncate(0)
+        data.seek(0); data.truncate(0)
 
-        # 2. Fetch all Users (ranked)
         users = User.query.order_by(User.score.desc(), User.total_time.asc()).all()
-
-        # 3. Build Rows
         for rank, user in enumerate(users):
-            row = [rank + 1, user.username, user.score]
-            
-            # For each question, find the user's BEST (passed) submission time
+            row = [rank + 1, user.username, user.score, user.warnings]
             for q_id in question_ids:
-                # Find a passed submission for this specific user & question
-                sub = Submission.query.filter_by(
-                    user_id=user.id, 
-                    question_id=q_id, 
-                    status='passed'
-                ).first() # Since we don't store multiple passes, the first one found is fine.
-                          # Ideally, you'd sort by solve_time if users could re-submit for better time, 
-                          # but your logic locks it after first solve.
-                
-                if sub:
-                    # Format time as seconds (e.g., 120.5s)
-                    row.append(f"{round(sub.solve_time, 2)}")
-                else:
-                    # Not solved yet
-                    row.append("-")
-            
+                sub = Submission.query.filter_by(user_id=user.id, question_id=q_id, status='passed').first()
+                row.append(f"{round(sub.solve_time, 2)}" if sub else "-")
             writer.writerow(row)
             yield data.getvalue()
-            data.seek(0)
-            data.truncate(0)
+            data.seek(0); data.truncate(0)
 
     response = Response(stream_with_context(generate()), mimetype='text/csv')
-    response.headers.set('Content-Disposition', 'attachment', filename='befunge_detailed_results.csv')
+    response.headers.set('Content-Disposition', 'attachment', filename='befunge_results.csv')
     return response
-
 
 if __name__ == '__main__':
     with app.app_context():
