@@ -56,7 +56,7 @@ class Config(db.Model):
     is_running = db.Column(db.Boolean, default=False)
     start_time = db.Column(db.Float, default=0.0)
     duration_seconds = db.Column(db.Integer, default=3600)
-    # NEW: Broadcast Fields
+    # Broadcast Fields
     broadcast_msg = db.Column(db.String(200), default="")
     broadcast_ts = db.Column(db.Float, default=0.0)
 
@@ -147,6 +147,17 @@ def get_questions():
 
 @app.route('/api/leaderboard')
 def get_leaderboard():
+    conf = get_config()
+    now = time.time()
+    end_time = conf.start_time + conf.duration_seconds
+    remaining = max(0, end_time - now)
+
+    # CODE FREEZE LOGIC:
+    # If contest running AND < 15 mins (900s) left AND user is NOT admin
+    if conf.is_running and remaining < 900 and 'admin_id' not in session:
+        return jsonify({'frozen': True})
+
+    # Normal Leaderboard
     users = User.query.order_by(User.score.desc(), User.total_time.asc()).limit(20).all()
     return jsonify([{
         'username': u.username, 
@@ -197,7 +208,6 @@ def submit_code():
     q_id = data.get('question_id')
     code = data.get('code')
 
-    # Run Tests
     cases = TestCase.query.filter_by(question_id=q_id).all()
     total_cases = len(cases)
     passed_count = 0
@@ -224,7 +234,6 @@ def submit_code():
     elif fail_reason.startswith("TLE"): detail_str = "⚠️ TLE"
     else: detail_str = f"❌ {fail_reason} ({passed_count}/{total_cases})"
 
-    # Log Submission
     user = User.query.get(user_id)
     q = Question.query.get(q_id)
     time_taken = time.time() - conf.start_time
@@ -280,10 +289,8 @@ def admin():
         db.session.add(new_q)
         db.session.commit()
         
-        # Add Sample Case
         db.session.add(TestCase(question_id=new_q.id, input_data=s_in, expected_output=s_out))
         
-        # Add Hidden Cases
         for h_in, h_out in zip(request.form.getlist('hidden_in[]'), request.form.getlist('hidden_out[]')):
             if h_in.strip() or h_out.strip(): 
                 db.session.add(TestCase(question_id=new_q.id, input_data=h_in, expected_output=h_out))

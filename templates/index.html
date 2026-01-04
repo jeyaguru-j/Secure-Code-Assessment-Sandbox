@@ -269,8 +269,15 @@
         async function updateLeaderboard() {
             try {
                 const res = await fetch('/api/leaderboard');
-                const users = await res.json();
-                document.getElementById('leaderboard-body').innerHTML = users.map((u, index) => `
+                const data = await res.json();
+                const tbody = document.getElementById('leaderboard-body');
+
+                if (data.frozen) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center"><div class="text-4xl mb-2 animate-bounce">❄️</div><h3 class="text-blue-300 font-bold tracking-widest uppercase">Leaderboard Frozen</h3><p class="text-xs text-gray-500 mt-2">The final 15 minutes are blind.<br>Keep coding!</p></td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = data.map((u, index) => `
                     <tr class="border-b border-gray-700 hover:bg-gray-700 transition-colors">
                         <td class="py-2 pl-2 text-gray-400 font-mono">#${index+1}</td>
                         <td class="py-2 font-bold ${index===0 ? 'text-yellow-400' : 'text-gray-300'}">${u.username}</td>
