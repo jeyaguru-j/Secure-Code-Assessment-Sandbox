@@ -14,79 +14,58 @@
         <div class="bg-gray-900 border-2 border-red-600 rounded-lg p-8 max-w-md text-center shadow-[0_0_50px_rgba(220,38,38,0.5)]">
             <div class="text-6xl mb-4">⚠️</div>
             <h2 class="text-3xl font-bold text-red-500 mb-2 tracking-widest">SYSTEM ALERT</h2>
-            <p class="text-white text-lg mb-6">
-                FOCUS LOST. <br>
-                <span class="text-red-400 text-sm">Tab switching is monitored. This incident has been logged.</span>
-            </p>
-            <button onclick="closeViolationModal()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-8 rounded border border-red-500 transition-transform active:scale-95 uppercase tracking-wider">
-                ACKNOWLEDGE
-            </button>
+            <p class="text-white text-lg mb-6">FOCUS LOST. <br><span class="text-red-400 text-sm">Tab switching is monitored. This incident has been logged.</span></p>
+            <button onclick="closeViolationModal()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-8 rounded border border-red-500 transition-transform active:scale-95 uppercase tracking-wider">ACKNOWLEDGE</button>
+        </div>
+    </div>
+
+    <div id="broadcast-modal" class="hidden fixed inset-0 bg-black/80 z-[60] flex justify-center items-center backdrop-blur-sm">
+        <div class="bg-gray-900 border-2 border-cyan-500 rounded-lg p-8 max-w-lg text-center shadow-[0_0_50px_rgba(6,182,212,0.4)] relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent"></div>
+            <div class="text-6xl mb-4 text-cyan-400 animate-pulse">📡</div>
+            <h2 class="text-2xl font-bold text-cyan-400 mb-2 tracking-[0.2em] uppercase">Incoming Transmission</h2>
+            <div class="h-px w-full bg-gray-700 my-4"></div>
+            <p id="broadcast-content" class="text-white text-xl mb-8 font-bold leading-relaxed"></p>
+            <button onclick="closeBroadcastModal()" class="bg-cyan-900 hover:bg-cyan-800 text-cyan-300 font-bold py-3 px-10 rounded border border-cyan-600 transition-all hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] uppercase tracking-wider text-sm">Mark as Read</button>
         </div>
     </div>
 
     <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10">
         <div class="flex items-center gap-4">
             <h1 class="text-xl font-bold text-green-400 tracking-wider">>> BEFUNGE_ROYALE_93</h1>
-            
             <div class="flex items-center gap-3 bg-black px-4 py-1 rounded border border-gray-600">
                 <span class="text-gray-400 text-xs uppercase">Operator</span>
                 <span class="font-bold text-white text-sm">{{ user.username }}</span>
-                <div id="score-display" class="pl-3 border-l border-gray-600 text-yellow-400 font-bold text-sm">
-                    Score: {{ user.score }}
-                </div>
+                <div id="score-display" class="pl-3 border-l border-gray-600 text-yellow-400 font-bold text-sm">Score: {{ user.score }}</div>
             </div>
         </div>
-
         <div class="flex items-center gap-4">
-            <div id="contest-timer" class="text-xl font-mono text-red-500 font-bold border border-red-900/50 px-4 py-1 rounded bg-black shadow-[0_0_10px_rgba(220,38,38,0.2)]">
-                00:00:00
-            </div>
+            <div id="contest-timer" class="text-xl font-mono text-red-500 font-bold border border-red-900/50 px-4 py-1 rounded bg-black shadow-[0_0_10px_rgba(220,38,38,0.2)]">00:00:00</div>
             <a href="/logout" class="bg-gray-700 hover:bg-red-900 text-white text-xs px-3 py-2 rounded transition-colors uppercase font-bold tracking-wide">Logout</a>
         </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-        
         <div class="w-1/3 bg-gray-800 border-r border-gray-700 flex flex-col">
             <div class="flex border-b border-gray-700">
-                <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">
-                    PROBLEM SET
-                </button>
-                <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">
-                    MY SUBMISSIONS
-                </button>
+                <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">PROBLEM SET</button>
+                <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">MY SUBMISSIONS</button>
             </div>
-
-            <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                <div id="question-list" class="space-y-4"></div>
-            </div>
-
+            <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar"><div id="question-list" class="space-y-4"></div></div>
             <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900">
                 <table class="w-full text-left text-xs">
-                    <thead class="bg-black text-gray-400 border-b border-gray-800">
-                        <tr>
-                            <th class="p-3 w-20">Time</th>
-                            <th class="p-3">Problem</th>
-                            <th class="p-3 text-right">Result</th>
-                        </tr>
-                    </thead>
+                    <thead class="bg-black text-gray-400 border-b border-gray-800"><tr><th class="p-3 w-20">Time</th><th class="p-3">Problem</th><th class="p-3 text-right">Result</th></tr></thead>
                     <tbody id="submission-list"></tbody>
                 </table>
             </div>
         </div>
 
         <div class="w-1/3 flex flex-col border-r border-gray-700 relative">
-            <div class="flex-1 text-base">
-                <textarea id="code-editor">v
-> "Hello World" ,,,,,,,,,,, @</textarea>
-            </div>
+            <div class="flex-1 text-base"><textarea id="code-editor">v
+> "Hello World" ,,,,,,,,,,, @</textarea></div>
             <div class="p-3 bg-gray-800 flex gap-3 border-t border-gray-700">
-                <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-2 rounded font-bold transition-colors shadow-lg">
-                    ▶ RUN CODE
-                </button>
-                <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-2 rounded font-bold transition-colors shadow-lg border border-green-500">
-                    ★ SUBMIT SOLUTION
-                </button>
+                <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-2 rounded font-bold transition-colors shadow-lg">▶ RUN CODE</button>
+                <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-2 rounded font-bold transition-colors shadow-lg border border-green-500">★ SUBMIT SOLUTION</button>
             </div>
         </div>
 
@@ -101,17 +80,10 @@
                     <pre id="output-console" class="bg-black text-green-500 p-3 flex-1 font-mono text-sm overflow-auto border border-gray-800 rounded">Waiting for execution...</pre>
                 </div>
             </div>
-            
             <div class="h-1/2 p-4 overflow-y-auto bg-gray-800">
                 <h3 class="text-xs text-yellow-500 font-bold mb-3 uppercase tracking-widest border-b border-gray-700 pb-1">Live Leaderboard</h3>
                 <table class="w-full text-left text-sm">
-                    <thead>
-                        <tr class="text-gray-500 border-b border-gray-700">
-                            <th class="pb-2 pl-2">Rank</th>
-                            <th class="pb-2">User</th>
-                            <th class="pb-2 text-right pr-2">Points</th>
-                        </tr>
-                    </thead>
+                    <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-2 pl-2">Rank</th><th class="pb-2">User</th><th class="pb-2 text-right pr-2">Points</th></tr></thead>
                     <tbody id="leaderboard-body"></tbody>
                 </table>
             </div>
@@ -126,6 +98,7 @@
         let currentQuestionId = null;
         let contestRunning = false;
         let contestQuestions = []; 
+        let lastBroadcastTime = 0;
 
         function formatTime(seconds) {
             if (seconds <= 0) return "ENDED";
@@ -153,6 +126,9 @@
             }
         }
 
+        function closeViolationModal() { document.getElementById('violation-modal').classList.add('hidden'); }
+        function closeBroadcastModal() { document.getElementById('broadcast-modal').classList.add('hidden'); }
+
         async function loadSubmissions() {
             const container = document.getElementById('submission-list');
             container.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Loading...</td></tr>';
@@ -179,6 +155,12 @@
                 const data = await res.json();
                 const timerElem = document.getElementById('contest-timer');
                 if(timerElem) timerElem.innerText = formatTime(data.remaining);
+
+                if (data.b_ts > lastBroadcastTime && data.b_msg) {
+                    lastBroadcastTime = data.b_ts; 
+                    document.getElementById('broadcast-content').innerText = data.b_msg;
+                    document.getElementById('broadcast-modal').classList.remove('hidden');
+                }
                 
                 if (data.running && !contestRunning) {
                     contestRunning = true;
@@ -260,18 +242,13 @@
             const submitBtn = document.activeElement; 
             const originalText = submitBtn.innerText;
             submitBtn.innerText = "Judging...";
-            
             try {
                 const res = await fetch('/api/submit', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        question_id: currentQuestionId, 
-                        code: editor.getValue()
-                    })
+                    body: JSON.stringify({question_id: currentQuestionId, code: editor.getValue()})
                 });
                 const data = await res.json();
-                
                 if(data.status === 'passed') {
                     alert("✅ PASSED! Points Awarded.");
                     document.getElementById('score-display').innerText = `Score: ${data.new_score}`;
@@ -306,19 +283,12 @@
             } catch (err) { console.error(err); }
         }
 
-        // --- UPDATED PROCTORING SYSTEM (THE EYE) ---
         document.addEventListener("visibilitychange", function() {
             if (document.visibilityState === 'hidden' && contestRunning) {
-                // 1. Report to server
                 reportViolation();
-                // 2. Show scary popup
                 document.getElementById('violation-modal').classList.remove('hidden');
             }
         });
-
-        function closeViolationModal() {
-            document.getElementById('violation-modal').classList.add('hidden');
-        }
 
         async function reportViolation() {
             try {

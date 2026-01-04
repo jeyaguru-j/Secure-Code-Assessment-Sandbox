@@ -26,7 +26,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(128)) 
     score = db.Column(db.Integer, default=0)
     total_time = db.Column(db.Float, default=0.0)
-    warnings = db.Column(db.Integer, default=0) # NEW: Proctoring Warning Counter
+    warnings = db.Column(db.Integer, default=0) 
 
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -56,6 +56,9 @@ class Config(db.Model):
     is_running = db.Column(db.Boolean, default=False)
     start_time = db.Column(db.Float, default=0.0)
     duration_seconds = db.Column(db.Integer, default=3600)
+    # NEW: Broadcast Fields
+    broadcast_msg = db.Column(db.String(200), default="")
+    broadcast_ts = db.Column(db.Float, default=0.0)
 
 def get_config():
     conf = Config.query.first()
@@ -83,14 +86,14 @@ def login():
         if target_role == 'admin':
             user = Admin.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
-                session.clear() # Security Wipe
+                session.clear() 
                 session['admin_id'] = user.id
                 session['username'] = user.username
                 return redirect('/admin')
         else:
             user = User.query.filter_by(username=username).first()
             if user and check_password_hash(user.password_hash, password):
-                session.clear() # Security Wipe
+                session.clear() 
                 session['user_id'] = user.id
                 session['username'] = user.username
                 return redirect('/contest')
@@ -125,7 +128,13 @@ def get_status():
     if conf.is_running and remaining == 0:
         conf.is_running = False
         db.session.commit()
-    return jsonify({'running': conf.is_running, 'remaining': int(remaining)})
+    
+    return jsonify({
+        'running': conf.is_running, 
+        'remaining': int(remaining),
+        'b_msg': conf.broadcast_msg,
+        'b_ts': conf.broadcast_ts
+    })
 
 @app.route('/api/questions')
 def get_questions():
@@ -143,7 +152,7 @@ def get_leaderboard():
         'username': u.username, 
         'score': u.score, 
         'time': round(u.total_time, 2),
-        'warnings': u.warnings # NEW: Send warning count
+        'warnings': u.warnings
     } for u in users])
 
 @app.route('/api/report_violation', methods=['POST'])
@@ -290,12 +299,19 @@ def admin_control():
     action = request.form.get('action')
     value = request.form.get('value')
     conf = get_config()
+    
     if action == 'start':
         conf.is_running = True
         conf.start_time = time.time()
         conf.duration_seconds = int(value) * 60
-    elif action == 'stop': conf.is_running = False
-    elif action == 'add_time': conf.duration_seconds += int(value) * 60
+    elif action == 'stop': 
+        conf.is_running = False
+    elif action == 'add_time': 
+        conf.duration_seconds += int(value) * 60
+    elif action == 'broadcast':
+        conf.broadcast_msg = value
+        conf.broadcast_ts = time.time()
+        
     db.session.commit()
     return redirect('/admin')
 
