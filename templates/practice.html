@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Befunge Practice Arena</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .grid-cell { width: 20px; height: 20px; border: 1px solid #333; text-align: center; font-family: monospace; font-size: 14px; }
+        .grid-row { display: flex; }
+        .highlight { background-color: #FFFF00; color: #000; font-weight: bold; }
+        .stack-item { border-bottom: 1px solid #444; padding: 2px 5px; font-family: monospace; }
+        /* Custom scrollbar for the grid */
+        #grid-container::-webkit-scrollbar { width: 8px; height: 8px; }
+        #grid-container::-webkit-scrollbar-track { background: #1a1a1a; }
+        #grid-container::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        #grid-container::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-[#1a1a1a] text-[#ccc] font-sans h-screen flex flex-col p-4 box-border">
+
+    <div id="grid-container" class="flex-1 overflow-auto bg-white border-2 border-gray-600 mb-4 relative">
+        <div id="grid-overlay" class="absolute top-0 left-0 text-black font-mono" style="pointer-events: none;"></div>
+        </div>
+
+    <div class="h-1/2 flex gap-4">
+        
+        <div class="flex-1 flex flex-col">
+            <div class="text-sm font-bold mb-1 text-gray-400">Edit the Codes Below</div>
+            <textarea id="source-code" class="flex-1 bg-white text-black border-2 border-gray-600 p-2 font-mono resize-none focus:outline-none" spellcheck="false">v   "Enter Your Code Here" <
+>                          ^
+>  ,,,,,,,,,,,,,,,,,,,,,,@</textarea>
+        </div>
+
+        <div class="w-32 flex flex-col">
+            <div class="text-sm font-bold mb-1 text-center text-gray-400">Stack</div>
+            <div id="stack-view" class="flex-1 bg-white text-black border-2 border-gray-600 overflow-y-auto flex flex-col-reverse p-1 font-mono text-sm">
+                </div>
+        </div>
+
+        <div class="flex-1 flex flex-col">
+            <div class="text-sm font-bold mb-1 text-center text-gray-400">Output</div>
+            <textarea id="output-box" class="flex-1 bg-[#ccc] text-black border-2 border-gray-600 p-2 font-mono resize-none mb-4 focus:outline-none" readonly></textarea>
+            
+            <div class="flex gap-2 justify-center">
+                <button id="btn-init" class="bg-[#e0e0e0] text-black px-6 py-2 rounded-full font-bold border-2 border-[#b0b0b0] hover:bg-white transition-colors shadow-md active:scale-95">Init</button>
+                <button id="btn-run" class="bg-[#e0e0e0] text-black px-6 py-2 rounded-full font-bold border-2 border-[#b0b0b0] hover:bg-white transition-colors shadow-md active:scale-95" disabled>Run</button>
+                <button id="btn-step" class="bg-[#e0e0e0] text-black px-6 py-2 rounded-full font-bold border-2 border-[#b0b0b0] hover:bg-white transition-colors shadow-md active:scale-95" disabled>Step</button>
+                <button id="btn-stop" class="bg-[#e0e0e0] text-black px-6 py-2 rounded-full font-bold border-2 border-[#b0b0b0] hover:bg-white transition-colors shadow-md active:scale-95" disabled>Stop</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const ROWS = 25, COLS = 80;
+        let grid = [], stack = [];
+        let pc = { x: 0, y: 0 }, dir = { x: 1, y: 0 };
+        let running = false, stringMode = false;
+        let intervalId = null;
+        const delay = 50; // Speed of execution
+
+        const gridContainer = document.getElementById('grid-container');
+        const gridOverlay = document.getElementById('grid-overlay');
+        const sourceCode = document.getElementById('source-code');
+        const stackView = document.getElementById('stack-view');
+        const outputBox = document.getElementById('output-box');
+        const btnInit = document.getElementById('btn-init');
+        const btnRun = document.getElementById('btn-run');
+        const btnStep = document.getElementById('btn-step');
+        const btnStop = document.getElementById('btn-stop');
+
+        // --- UI FUNCTIONS ---
+        function createGrid() {
+            gridContainer.innerHTML = ''; // Clear existing
+            gridOverlay.innerHTML = ''; // Clear overlay
+            for (let y = 0; y < ROWS; y++) {
+                let row = document.createElement('div');
+                row.className = 'grid-row';
+                for (let x = 0; x < COLS; x++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.id = `cell-${x}-${y}`;
+                    row.appendChild(cell);
+                }
+                gridContainer.appendChild(row);
+            }
+            gridContainer.appendChild(gridOverlay);
+        }
+
+        function updateUI() {
+            // Update Grid Highlight
+            document.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight'));
+            const activeCell = document.getElementById(`cell-${pc.x}-${pc.y}`);
+            if (activeCell) activeCell.classList.add('highlight');
+
+            // Update Stack View
+            stackView.innerHTML = stack.map(item => `<div class="stack-item">${item}</div>`).join('');
+        }
+
+        function loadProgram() {
+            const lines = sourceCode.value.split('\n');
+            for (let y = 0; y < ROWS; y++) {
+                grid[y] = [];
+                let rowText = (lines[y] || "").padEnd(COLS, " ");
+                for (let x = 0; x < COLS; x++) {
+                    grid[y][x] = rowText[x];
+                    document.getElementById(`cell-${x}-${y}`).textContent = grid[y][x];
+                }
+            }
+        }
+
+        function setControls(isRunning) {
+            btnInit.disabled = isRunning;
+            btnRun.disabled = isRunning;
+            btnStep.disabled = isRunning;
+            btnStop.disabled = !isRunning;
+            sourceCode.disabled = isRunning;
+        }
+
+        // --- INTERPRETER CORE ---
+        function pop() { return stack.pop() || 0; }
+        function push(val) { stack.push(val); }
+        function move() {
+            pc.x = (pc.x + dir.x + COLS) % COLS;
+            pc.y = (pc.y + dir.y + ROWS) % ROWS;
+        }
+
+        function step() {
+            const cmd = grid[pc.y][pc.x];
+
+            if (stringMode) {
+                if (cmd === '"') stringMode = false;
+                else push(cmd.charCodeAt(0));
+            } else if (cmd >= '0' && cmd <= '9') {
+                push(parseInt(cmd));
+            } else {
+                switch (cmd) {
+                    case '+': push(pop() + pop()); break;
+                    case '-': { let a = pop(), b = pop(); push(b - a); } break;
+                    case '*': push(pop() * pop()); break;
+                    case '/': { let a = pop(), b = pop(); push(b === 0 ? 0 : Math.floor(a / b)); } break;
+                    case '%': { let a = pop(), b = pop(); push(b === 0 ? 0 : b % a); } break;
+                    case '!': push(pop() === 0 ? 1 : 0); break;
+                    case '`': { let a = pop(), b = pop(); push(b > a ? 1 : 0); } break;
+                    case '>': dir = { x: 1, y: 0 }; break;
+                    case '<': dir = { x: -1, y: 0 }; break;
+                    case '^': dir = { x: 0, y: -1 }; break;
+                    case 'v': dir = { x: 0, y: 1 }; break;
+                    case '?': {
+                        const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:-1}, {x:0,y:1}];
+                        dir = dirs[Math.floor(Math.random() * 4)];
+                    } break;
+                    case '_': dir = pop() === 0 ? { x: 1, y: 0 } : { x: -1, y: 0 }; break;
+                    case '|': dir = pop() === 0 ? { x: 0, y: 1 } : { x: 0, y: -1 }; break;
+                    case '"': stringMode = true; break;
+                    case ':': { let a = pop(); push(a); push(a); } break;
+                    case '\\': { let a = pop(), b = pop(); push(a); push(b); } break;
+                    case '$': pop(); break;
+                    case '.': outputBox.value += pop() + " "; break;
+                    case ',': outputBox.value += String.fromCharCode(pop()); break;
+                    case '#': move(); break;
+                    case 'g': { let y = pop(), x = pop(); push(grid[y][x].charCodeAt(0)); } break;
+                    case 'p': { let y = pop(), x = pop(), v = pop(); grid[y][x] = String.fromCharCode(v); document.getElementById(`cell-${x}-${y}`).textContent = String.fromCharCode(v); } break;
+                    case '&': { let val = prompt("Enter a number:"); push(isNaN(parseInt(val)) ? 0 : parseInt(val)); } break;
+                    case '~': { let val = prompt("Enter a character:"); push(val ? val.charCodeAt(0) : 0); } break;
+                    case '@': stop(); return;
+                }
+            }
+            move();
+            updateUI();
+        }
+
+        function run() {
+            if (running) return;
+            running = true;
+            setControls(true);
+            intervalId = setInterval(step, delay);
+        }
+
+        function stop() {
+            if (!running) return;
+            running = false;
+            clearInterval(intervalId);
+            setControls(false);
+            updateUI();
+        }
+
+        // --- EVENT LISTENERS ---
+        btnInit.addEventListener('click', () => {
+            loadProgram();
+            pc = { x: 0, y: 0 }; dir = { x: 1, y: 0 };
+            stack = []; stringMode = false;
+            outputBox.value = '';
+            updateUI();
+            btnRun.disabled = false;
+            btnStep.disabled = false;
+        });
+
+        btnRun.addEventListener('click', run);
+        btnStep.addEventListener('click', step);
+        btnStop.addEventListener('click', stop);
+
+        // Initialize on load
+        createGrid();
+        loadProgram();
+    </script>
+</body>
+</html>

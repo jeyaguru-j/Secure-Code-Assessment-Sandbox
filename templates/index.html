@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        /* Ensure iframe takes full height */
+        #practice-frame {
+            height: calc(100vh - 9rem);
+        }
+    </style>
 </head>
 <body class="bg-gray-900 text-white font-mono h-screen flex flex-col transition-shadow duration-300" id="main-body">
 
@@ -45,61 +51,78 @@
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
-        <div class="w-1/3 bg-gray-800 border-r border-gray-700 flex flex-col">
-            <div class="flex border-b border-gray-700">
-                <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">PROBLEM SET</button>
-                <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">MY SUBMISSIONS</button>
-            </div>
-            <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar"><div id="question-list" class="space-y-4"></div></div>
-            <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-black text-gray-400 border-b border-gray-800"><tr><th class="p-3 w-20">Time</th><th class="p-3">Problem</th><th class="p-3 text-right">Result</th></tr></thead>
-                    <tbody id="submission-list"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="w-1/3 flex flex-col border-r border-gray-700 relative">
-            <div class="flex-1 text-base"><textarea id="code-editor">v
-> "Hello World" ,,,,,,,,,,, @</textarea></div>
-            <div class="p-3 bg-gray-800 flex gap-3 border-t border-gray-700">
-                <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-2 rounded font-bold transition-colors shadow-lg">▶ RUN CODE</button>
-                <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-2 rounded font-bold transition-colors shadow-lg border border-green-500">★ SUBMIT SOLUTION</button>
-            </div>
-        </div>
-
-        <div class="w-1/3 flex flex-col bg-gray-800">
-            <div class="h-1/2 p-4 border-b border-gray-700 flex flex-col bg-black/50">
-                <div class="mb-2">
-                    <h3 class="text-xs text-gray-500 font-bold mb-1 uppercase">Standard Input (Stdin)</h3>
-                    <input id="custom-input" type="text" class="bg-gray-900 border border-gray-700 text-green-400 p-2 w-full font-mono text-sm rounded focus:border-green-500 focus:outline-none" placeholder="Enter input here...">
-                </div>
-                <div class="flex-1 flex flex-col min-h-0">
-                    <h3 class="text-xs text-gray-500 font-bold mb-1 uppercase">Console Output</h3>
-                    <pre id="output-console" class="bg-black text-green-500 p-3 flex-1 font-mono text-sm overflow-auto border border-gray-800 rounded">Waiting for execution...</pre>
-                </div>
-            </div>
-            <div class="h-1/2 p-4 overflow-y-auto bg-gray-800">
-                <h3 class="text-xs text-yellow-500 font-bold mb-3 uppercase tracking-widest border-b border-gray-700 pb-1">Live Leaderboard</h3>
-                <table class="w-full text-left text-sm">
-                    <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-2 pl-2">Rank</th><th class="pb-2">User</th><th class="pb-2 text-right pr-2">Points</th></tr></thead>
-                    <tbody id="leaderboard-body"></tbody>
-                </table>
-            </div>
-        </div>
+    <div class="flex border-b border-gray-700 bg-gray-800 z-10 relative">
+        <button onclick="showView('contest')" id="nav-btn-contest" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 hover:bg-gray-700 transition-colors border-b-2 border-blue-500">
+            CONTEST ARENA
+        </button>
+        <button onclick="showView('practice')" id="nav-btn-practice" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 hover:bg-gray-700 transition-colors border-b-2 border-transparent">
+            PRACTICE ARENA
+        </button>
     </div>
 
+    <div class="flex-1 relative overflow-hidden">
+        
+        <div id="contest-view" class="flex h-full absolute inset-0">
+            <div class="w-1/3 bg-gray-800 border-r border-gray-700 flex flex-col">
+                <div class="flex border-b border-gray-700">
+                    <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">PROBLEM SET</button>
+                    <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">MY SUBMISSIONS</button>
+                </div>
+                <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar"><div id="question-list" class="space-y-4"></div></div>
+                <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-black text-gray-400 border-b border-gray-800"><tr><th class="p-3 w-20">Time</th><th class="p-3">Problem</th><th class="p-3 text-right">Result</th></tr></thead>
+                        <tbody id="submission-list"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="w-1/3 flex flex-col border-r border-gray-700 relative">
+                <div class="flex-1 text-base"><textarea id="code-editor">v
+> "Hello World" ,,,,,,,,,,, @</textarea></div>
+                <div class="p-3 bg-gray-800 flex gap-3 border-t border-gray-700">
+                    <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-2 rounded font-bold transition-colors shadow-lg">▶ RUN CODE</button>
+                    <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-2 rounded font-bold transition-colors shadow-lg border border-green-500">★ SUBMIT SOLUTION</button>
+                </div>
+            </div>
+            <div class="w-1/3 flex flex-col bg-gray-800">
+                <div class="h-1/2 p-4 border-b border-gray-700 flex flex-col bg-black/50">
+                    <div class="mb-2">
+                        <h3 class="text-xs text-gray-500 font-bold mb-1 uppercase">Standard Input (Stdin)</h3>
+                        <input id="custom-input" type="text" class="bg-gray-900 border border-gray-700 text-green-400 p-2 w-full font-mono text-sm rounded focus:border-green-500 focus:outline-none" placeholder="Enter input here...">
+                    </div>
+                    <div class="flex-1 flex flex-col min-h-0">
+                        <h3 class="text-xs text-gray-500 font-bold mb-1 uppercase">Console Output</h3>
+                        <pre id="output-console" class="bg-black text-green-500 p-3 flex-1 font-mono text-sm overflow-auto border border-gray-800 rounded">Waiting for execution...</pre>
+                    </div>
+                </div>
+                <div class="h-1/2 p-4 overflow-y-auto bg-gray-800">
+                    <h3 class="text-xs text-yellow-500 font-bold mb-3 uppercase tracking-widest border-b border-gray-700 pb-1">Live Leaderboard</h3>
+                    <table class="w-full text-left text-sm">
+                        <thead><tr class="text-gray-500 border-b border-gray-700"><th class="pb-2 pl-2">Rank</th><th class="pb-2">User</th><th class="pb-2 text-right pr-2">Points</th></tr></thead>
+                        <tbody id="leaderboard-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <iframe id="practice-frame" src="/practice" class="hidden w-full border-0 absolute inset-0 z-20"></iframe>
+
+    </div>
+
+
     <script>
+        // --- EDITOR CONFIG ---
         var editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
             lineNumbers: true, theme: "monokai", mode: "text", lineWrapping: true
         });
 
+        // --- GLOBAL STATE ---
         let currentQuestionId = null;
         let contestRunning = false;
         let contestQuestions = []; 
         let lastBroadcastTime = 0;
 
+        // --- UTILS ---
         function formatTime(seconds) {
             if (seconds <= 0) return "ENDED";
             const h = Math.floor(seconds / 3600);
@@ -108,6 +131,30 @@
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
         }
 
+        // --- VIEW NAVIGATION ---
+        function showView(viewName) {
+            const contestView = document.getElementById('contest-view');
+            const practiceFrame = document.getElementById('practice-frame');
+            const navContest = document.getElementById('nav-btn-contest');
+            const navPractice = document.getElementById('nav-btn-practice');
+
+            if(viewName === 'contest') {
+                contestView.classList.remove('hidden');
+                practiceFrame.classList.add('hidden');
+                navContest.className = "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors";
+                navPractice.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
+            } else {
+                contestView.classList.add('hidden');
+                practiceFrame.classList.remove('hidden');
+                navContest.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
+                navPractice.className = "flex-1 py-3 text-sm font-bold text-green-400 bg-gray-800 border-b-2 border-green-500 transition-colors";
+                
+                // CRITICAL FIX: Ensure focus starts on iframe to catch tab switches immediately
+                practiceFrame.contentWindow.focus();
+            }
+        }
+
+        // --- CONTEST TABS ---
         function switchTab(tabName) {
             const qView = document.getElementById('view-questions');
             const sView = document.getElementById('view-submissions');
@@ -126,9 +173,11 @@
             }
         }
 
+        // --- MODAL LOGIC ---
         function closeViolationModal() { document.getElementById('violation-modal').classList.add('hidden'); }
         function closeBroadcastModal() { document.getElementById('broadcast-modal').classList.add('hidden'); }
 
+        // --- DATA LOADING ---
         async function loadSubmissions() {
             const container = document.getElementById('submission-list');
             container.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Loading...</td></tr>';
@@ -147,38 +196,6 @@
                     return `<tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors"><td class="p-3 text-gray-500 font-mono">${s.time}</td><td class="p-3 font-bold text-white">${s.title}</td><td class="p-3 text-right ${colorClass}">${s.details}</td></tr>`;
                 }).join('');
             } catch(err) { console.error(err); }
-        }
-
-        async function syncState() {
-            try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                const timerElem = document.getElementById('contest-timer');
-                if(timerElem) timerElem.innerText = formatTime(data.remaining);
-
-                if (data.b_ts > lastBroadcastTime && data.b_msg) {
-                    lastBroadcastTime = data.b_ts; 
-                    document.getElementById('broadcast-content').innerText = data.b_msg;
-                    document.getElementById('broadcast-modal').classList.remove('hidden');
-                }
-                
-                if (data.running && !contestRunning) {
-                    contestRunning = true;
-                    loadQuestions(); 
-                    document.getElementById('output-console').innerText = ">>> SYSTEM ONLINE.\n>>> CONTEST STARTED.";
-                } else if (!data.running && contestRunning) {
-                    contestRunning = false;
-                    document.getElementById('question-list').innerHTML = "<div class='p-4 text-red-500 font-bold border border-red-500 rounded bg-red-900/20 text-center'>CONTEST HAS ENDED</div>";
-                    alert("TIME IS UP!");
-                } else if (!data.running && !contestRunning) {
-                    document.getElementById('question-list').innerHTML = `
-                        <div class='p-8 text-center text-gray-500 animate-pulse'>
-                            <div class="text-4xl mb-2">🔒</div>
-                            <h2 class='text-lg font-bold text-yellow-500'>AWAITING HOST</h2>
-                            <p class="mt-2 text-xs">Problem set encrypted.</p>
-                        </div>`;
-                }
-            } catch (err) { console.error("Sync Error:", err); }
         }
 
         async function loadQuestions() {
@@ -266,6 +283,38 @@
             submitBtn.innerText = originalText;
         }
 
+        async function syncState() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const timerElem = document.getElementById('contest-timer');
+                if(timerElem) timerElem.innerText = formatTime(data.remaining);
+
+                if (data.b_ts > lastBroadcastTime && data.b_msg) {
+                    lastBroadcastTime = data.b_ts; 
+                    document.getElementById('broadcast-content').innerText = data.b_msg;
+                    document.getElementById('broadcast-modal').classList.remove('hidden');
+                }
+                
+                if (data.running && !contestRunning) {
+                    contestRunning = true;
+                    loadQuestions(); 
+                    document.getElementById('output-console').innerText = ">>> SYSTEM ONLINE.\n>>> CONTEST STARTED.";
+                } else if (!data.running && contestRunning) {
+                    contestRunning = false;
+                    document.getElementById('question-list').innerHTML = "<div class='p-4 text-red-500 font-bold border border-red-500 rounded bg-red-900/20 text-center'>CONTEST HAS ENDED</div>";
+                    alert("TIME IS UP!");
+                } else if (!data.running && !contestRunning) {
+                    document.getElementById('question-list').innerHTML = `
+                        <div class='p-8 text-center text-gray-500 animate-pulse'>
+                            <div class="text-4xl mb-2">🔒</div>
+                            <h2 class='text-lg font-bold text-yellow-500'>AWAITING HOST</h2>
+                            <p class="mt-2 text-xs">Problem set encrypted.</p>
+                        </div>`;
+                }
+            } catch (err) { console.error("Sync Error:", err); }
+        }
+
         async function updateLeaderboard() {
             try {
                 const res = await fetch('/api/leaderboard');
@@ -290,12 +339,32 @@
             } catch (err) { console.error(err); }
         }
 
+        // --- UPDATED PROCTORING SYSTEM (THE EYE) ---
+        // 1. Monitor the MAIN WINDOW
         document.addEventListener("visibilitychange", function() {
+            // FIX: Removed the '&& isContestView' check. 
+            // Now, if contest is running, switching tabs ANYWHERE triggers the alert.
             if (document.visibilityState === 'hidden' && contestRunning) {
                 reportViolation();
                 document.getElementById('violation-modal').classList.remove('hidden');
             }
         });
+
+        // 2. Extra Safety: Monitor the IFRAME window too (once it loads)
+        const practiceFrame = document.getElementById('practice-frame');
+        practiceFrame.onload = function() {
+            try {
+                const iframeDoc = practiceFrame.contentDocument || practiceFrame.contentWindow.document;
+                iframeDoc.addEventListener("visibilitychange", function() {
+                    if (iframeDoc.visibilityState === 'hidden' && contestRunning) {
+                        reportViolation();
+                        document.getElementById('violation-modal').classList.remove('hidden');
+                    }
+                });
+            } catch(e) {
+                // Ignore cross-origin errors if they occur (shouldn't here as same origin)
+            }
+        };
 
         async function reportViolation() {
             try {

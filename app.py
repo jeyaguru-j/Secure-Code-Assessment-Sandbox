@@ -9,12 +9,13 @@ import io
 from datetime import datetime
 
 app = Flask(__name__)
+# ... (keep your existing secret key and DB config)
 app.secret_key = "SUPER_SECRET_CONTEST_KEY_CHANGE_THIS_IN_PROD"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///contest.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# --- MODELS ---
+# ... (keep all your existing Models: Admin, User, Question, TestCase, Submission, Config)
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
@@ -61,6 +62,7 @@ class Config(db.Model):
     broadcast_ts = db.Column(db.Float, default=0.0)
 
 def get_config():
+    # ... (keep existing get_config logic)
     conf = Config.query.first()
     if not conf:
         conf = Config(is_running=False, start_time=0, duration_seconds=3600)
@@ -68,8 +70,14 @@ def get_config():
         db.session.commit()
     return conf
 
-# --- AUTH ROUTES ---
+# --- NEW ROUTE FOR PRACTICE ARENA ---
+@app.route('/practice')
+def practice():
+    return render_template('practice.html')
+# ------------------------------------
 
+# --- AUTH ROUTES ---
+# ... (keep existing home, login, logout routes)
 @app.route('/')
 def home():
     return render_template('home.html')
@@ -108,7 +116,7 @@ def logout():
     return redirect('/')
 
 # --- CONTEST UI ---
-
+# ... (keep existing contest_ui route)
 @app.route('/contest')
 def contest_ui():
     if 'user_id' not in session:
@@ -118,7 +126,7 @@ def contest_ui():
     return render_template('index.html', user=user)
 
 # --- API ROUTES ---
-
+# ... (keep all existing API routes: status, questions, leaderboard, report_violation, my_submissions, submit, run)
 @app.route('/api/status')
 def get_status():
     conf = get_config()
@@ -208,6 +216,7 @@ def submit_code():
     q_id = data.get('question_id')
     code = data.get('code')
 
+    # Run Tests
     cases = TestCase.query.filter_by(question_id=q_id).all()
     total_cases = len(cases)
     passed_count = 0
@@ -234,6 +243,7 @@ def submit_code():
     elif fail_reason.startswith("TLE"): detail_str = "⚠️ TLE"
     else: detail_str = f"❌ {fail_reason} ({passed_count}/{total_cases})"
 
+    # Log Submission
     user = User.query.get(user_id)
     q = Question.query.get(q_id)
     time_taken = time.time() - conf.start_time
@@ -272,7 +282,7 @@ def run_code():
     return jsonify({'output': output})
 
 # --- ADMIN ROUTES ---
-
+# ... (keep all existing admin routes)
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if 'admin_id' not in session:
@@ -289,8 +299,10 @@ def admin():
         db.session.add(new_q)
         db.session.commit()
         
+        # Add Sample Case
         db.session.add(TestCase(question_id=new_q.id, input_data=s_in, expected_output=s_out))
         
+        # Add Hidden Cases
         for h_in, h_out in zip(request.form.getlist('hidden_in[]'), request.form.getlist('hidden_out[]')):
             if h_in.strip() or h_out.strip(): 
                 db.session.add(TestCase(question_id=new_q.id, input_data=h_in, expected_output=h_out))
