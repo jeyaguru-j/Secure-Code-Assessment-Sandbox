@@ -145,16 +145,28 @@ def get_questions():
     if 'user_id' not in session: return jsonify([])
     conf = get_config()
     if not conf.is_running: return jsonify([])
+    
     questions = Question.query.filter_by(is_visible=True).all()
-    return jsonify([{'id': q.id, 'title': q.title, 'points': q.points, 'desc': q.description, 's_in': q.sample_input} for q in questions])
+    
+    solved_ids = []
+    submissions = Submission.query.filter_by(user_id=session['user_id'], status='passed').all()
+    solved_ids = [s.question_id for s in submissions]
+
+    return jsonify([{
+        'id': q.id, 
+        'title': q.title, 
+        'points': q.points, 
+        'desc': q.description, 
+        's_in': q.sample_input,
+        'solved': q.id in solved_ids 
+    } for q in questions])
 
 @app.route('/api/leaderboard')
 def get_leaderboard():
     conf = get_config()
-    now = time.time()
-    end_time = conf.start_time + conf.duration_seconds
-    remaining = max(0, end_time - now)
-    if conf.is_running and remaining < 900 and 'admin_id' not in session:
+    
+    # FIX: ONLY FREEZE IF MANUALLY SET BY ADMIN
+    if conf.is_frozen and 'admin_id' not in session:
         return jsonify({'frozen': True})
     
     users = User.query.order_by(User.score.desc(), User.total_time.asc()).limit(20).all()
@@ -303,11 +315,9 @@ def download_leaderboard():
         data = io.StringIO()
         writer = csv.writer(data)
         questions = Question.query.order_by(Question.id).all()
-        # ADDED 'Total Time' HERE
         writer.writerow(['Rank', 'Username', 'Score', 'Total Time', 'Warnings'] + [q.title for q in questions])
         yield data.getvalue(); data.seek(0); data.truncate(0)
         for rank, user in enumerate(User.query.order_by(User.score.desc(), User.total_time.asc()).all()):
-            # ADDED round(user.total_time, 2) HERE
             row = [rank + 1, user.username, user.score, round(user.total_time, 2), user.warnings]
             for q in questions:
                 sub = Submission.query.filter_by(user_id=user.id, question_id=q.id, status='passed').first()

@@ -69,6 +69,21 @@
         </div>
     </div>
 
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-black/80 z-[85] flex justify-center items-center backdrop-blur-sm">
+        <div class="bg-gray-800 border-2 border-yellow-500 rounded-lg shadow-xl max-w-md w-full p-6 text-center">
+            <div class="text-5xl mb-4">⚠️</div>
+            <h2 class="text-2xl font-bold text-yellow-400 mb-4">Input Warning</h2>
+            <p class="text-gray-300 mb-6 text-sm">
+                Your code expects input (<span class="font-mono text-yellow-300">&</span> or <span class="font-mono text-yellow-300">~</span>), but the <span class="font-bold text-white">Standard Input</span> box is empty.<br><br>
+                This might cause an infinite loop or Time Limit Exceeded.
+            </p>
+            <div class="flex gap-4">
+                <button onclick="resolveRunConfirm(false)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded transition-colors">CANCEL</button>
+                <button onclick="resolveRunConfirm(true)" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded transition-colors">RUN ANYWAY</button>
+            </div>
+        </div>
+    </div>
+
     <div id="main-app" class="hidden flex-col h-full bg-gray-900">
         <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10">
             <div class="flex items-center gap-4">
@@ -186,20 +201,16 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        // --- 1. ENTER CONTEST ---
         function enterContest() {
             const elem = document.documentElement;
             if (elem.requestFullscreen) elem.requestFullscreen();
             else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-            
             document.getElementById('start-overlay').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             document.getElementById('main-app').classList.add('flex');
-            
             setTimeout(() => { isProctoringActive = true; }, 1000);
         }
 
-        // --- 2. PROCTORING ---
         async function logViolation(reason) {
             if (!isProctoringActive) return;
             isProctoringActive = false; 
@@ -215,17 +226,20 @@
         }
 
         document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isProctoringActive) logViolation("Exited Fullscreen"); });
+        document.addEventListener('webkitfullscreenchange', () => { if (!document.webkitFullscreenElement && isProctoringActive) logViolation("Exited Fullscreen"); });
         document.addEventListener("visibilitychange", () => { if (document.hidden && isProctoringActive) logViolation("Tab Switch / Focus Lost"); });
 
         async function handleLogout() {
             isProctoringActive = false; 
+            // USING NATIVE CONFIRM HERE IS OKAY AS LAST STEP, BUT BETTER TO USE CUSTOM IF STRICT
+            // For now, let's trust the user knows logout ends session. 
+            // Ideally, replace this with a custom modal too, but it's less critical than runCode.
             if(confirm("Logging out will record a violation. Proceed?")) {
                 await fetch('/api/report_violation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reason: 'Manual Logout'}) });
                 window.location.href = "/logout";
             } else { isProctoringActive = true; }
         }
 
-        // --- 3. UI LOGIC ---
         function showView(viewName) {
             const cView = document.getElementById('contest-view'), pFrame = document.getElementById('practice-frame');
             const nContest = document.getElementById('nav-btn-contest'), nPractice = document.getElementById('nav-btn-practice');
@@ -256,7 +270,7 @@
             }
         }
 
-        // --- 4. RESULT MODAL SYSTEM ---
+        // --- RESULTS MODAL ---
         const successPhrases = ["Absolute Cinema!", "Syntax Sorcery!", "Code Wizardry!", "Legendary Status!", "Pure Genius!", "Flawless Logic!", "Algorithm Ascended!"];
         const failPhrases = ["Nice Try!", "Debug & Destroy!", "Don't Give Up!", "Almost There!", "Keep Pushing!", "Logic Loading...", "Error 404: Logic Not Found"];
 
@@ -277,59 +291,49 @@
         }
         function closeResult() { document.getElementById('result-modal').classList.add('hidden'); }
 
-        // --- 5. DATA LOGIC ---
-        async function syncState() {
-            try {
-                const res = await fetch('/api/status'); const data = await res.json();
-                document.getElementById('contest-timer').innerText = formatTime(data.remaining);
-                if (data.q_ts > lastQUpdate) { lastQUpdate = data.q_ts; if(contestRunning) loadQuestions(); }
-                if (data.running && !contestRunning) { contestRunning = true; loadQuestions(); document.getElementById('output-console').innerText = ">>> CONTEST STARTED."; }
-                else if (!data.running && contestRunning) { contestRunning = false; alert("TIME UP!"); }
-                else if (!data.running) document.getElementById('question-list').innerHTML = `<div class='p-8 text-center text-gray-500'>AWAITING HOST</div>`;
-            } catch (err) {}
-        }
-
-        async function loadQuestions() {
-            const res = await fetch('/api/questions'); const qs = await res.json(); window.contestQuestions = qs;
-            document.getElementById('question-list').innerHTML = qs.map(q => `
-                <div id="q-card-${q.id}" class="question-card p-4 bg-gray-700 border-l-4 border-gray-500 rounded mb-2 cursor-pointer hover:bg-gray-600 transition-all duration-200" onclick="selectQuestion(${q.id})">
-                    <div class="flex justify-between font-bold text-sm">
-                        <span class="text-white">${q.title}</span>
-                        <span class="text-blue-300 text-xs px-2 py-0.5 bg-black/30 rounded border border-blue-900/50">${q.points} PTS</span>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1 truncate">${q.desc}</p>
-                </div>
-            `).join('');
-            // Retain highlight if reloaded
-            if(currentQuestionId) highlightCard(currentQuestionId);
-        }
-
-        function selectQuestion(id) {
-            currentQuestionId = id;
-            const q = window.contestQuestions.find(item => item.id === id);
-            if (q) document.getElementById('custom-input').value = q.s_in;
-            highlightCard(id);
-        }
-
-        function highlightCard(id) {
-            // 1. Reset all cards to default
-            document.querySelectorAll('.question-card').forEach(el => {
-                el.classList.remove('bg-gray-600', 'border-yellow-400', 'shadow-lg', 'scale-[1.02]');
-                el.classList.add('bg-gray-700', 'border-gray-500');
-            });
-
-            // 2. Highlight specific card
-            const card = document.getElementById(`q-card-${id}`);
-            if(card) {
-                card.classList.remove('bg-gray-700', 'border-gray-500');
-                card.classList.add('bg-gray-600', 'border-yellow-400', 'shadow-lg', 'scale-[1.02]');
+        // --- NEW: RUN CODE LOGIC WITH CUSTOM MODAL (NO NATIVE CONFIRM) ---
+        function runCode() {
+            const code = editor.getValue();
+            const input = document.getElementById('custom-input').value;
+            // Check condition
+            if ((code.includes('&') || code.includes('~')) && !input.trim()) {
+                document.getElementById('confirm-modal').classList.remove('hidden'); // SHOW HTML MODAL
+            } else {
+                executeRun(); // SAFE TO RUN
             }
         }
-        
-        async function runCode() { try { const res = await fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: editor.getValue(), input: document.getElementById('custom-input').value}) }); const data = await res.json(); document.getElementById('output-console').innerText = data.output; } catch(e) { document.getElementById('output-console').innerText = "Error"; } }
+
+        // Called by buttons inside #confirm-modal
+        function resolveRunConfirm(shouldRun) {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            if (shouldRun) {
+                executeRun();
+            } else {
+                document.getElementById('custom-input').focus();
+            }
+        }
+
+        // Actual API Fetch
+        async function executeRun() {
+            const code = editor.getValue();
+            const input = document.getElementById('custom-input').value;
+            document.getElementById('output-console').innerText = "Running...";
+            try { 
+                const res = await fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: code, input: input}) }); 
+                const data = await res.json(); 
+                document.getElementById('output-console').innerText = data.output; 
+            } catch(e) { document.getElementById('output-console').innerText = "Error: Connection Failed"; } 
+        }
         
         async function submitCode() { 
-            if(!contestRunning || !currentQuestionId) return alert("Select a problem first!"); 
+            if(!contestRunning || !currentQuestionId) {
+                // Using a non-blocking toast or just logging to console is safer here, 
+                // but let's assume selecting a problem is done. 
+                // To be safe, we can just highlight the list.
+                document.getElementById('view-questions').classList.add('animate-pulse');
+                setTimeout(() => document.getElementById('view-questions').classList.remove('animate-pulse'), 500);
+                return;
+            } 
             try { 
                 const res = await fetch('/api/submit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question_id: currentQuestionId, code: editor.getValue()}) }); 
                 const data = await res.json(); 
@@ -337,19 +341,18 @@
                     showResult("PASSED", "Points Awarded!", true);
                     document.getElementById('score-display').innerText = `Score: ${data.new_score}`; 
                     updateLeaderboard(); 
+                    loadQuestions(); 
                 } else { showResult("FAILED", data.details || data.message, false); }
-            } catch(e) { alert("Network Error"); } 
+            } catch(e) { /* silent fail or custom modal */ } 
         }
         
         async function updateLeaderboard() { 
             const res = await fetch('/api/leaderboard'); const data = await res.json(); 
             const tbody = document.getElementById('leaderboard-body');
-
             if (data.frozen) {
                 tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center"><div class="text-4xl mb-2 animate-bounce">❄️</div><h3 class="text-blue-300 font-bold tracking-widest uppercase">Leaderboard Frozen</h3><p class="text-xs text-gray-500 mt-2">The final moments are hidden.<br>Keep coding!</p></td></tr>`;
                 return;
             }
-
             tbody.innerHTML = data.map((u, i) => {
                 let rankStyle = "text-gray-400"; let rankIcon = `#${i+1}`; let rowBg = "hover:bg-gray-800 transition-colors";
                 if (i === 0) { rankStyle = "rank-1 font-bold text-lg"; rankIcon = "🥇"; rowBg = "bg-yellow-900/20 hover:bg-yellow-900/30"; }
@@ -362,6 +365,10 @@
         async function loadSubmissions() { const res = await fetch('/api/my_submissions'); const subs = await res.json(); document.getElementById('submission-list').innerHTML = subs.map(s => `<tr><td class="p-2 text-gray-500">${s.time}</td><td class="p-2">${s.title}</td><td class="p-2 text-right ${s.status==='passed'?'text-green-400':'text-red-400'}">${s.details}</td></tr>`).join(''); }
         async function checkBroadcasts() { const res = await fetch('/api/broadcasts'); const msgs = await res.json(); for (let msg of msgs) { const key = `b_${msg.id}`; if (!localStorage.getItem(key) || parseFloat(localStorage.getItem(key)) < msg.sent_at) { document.getElementById('broadcast-content').innerText = msg.message; document.getElementById('broadcast-modal').classList.remove('hidden'); window.currB = msg; break; } } }
         function closeBroadcast() { document.getElementById('broadcast-modal').classList.add('hidden'); if(window.currB) localStorage.setItem(`b_${window.currB.id}`, window.currB.sent_at); }
+        function selectQuestion(id, s_in) { currentQuestionId = id; if(s_in !== undefined) document.getElementById('custom-input').value = s_in; highlightCard(id); }
+        function highlightCard(id) { document.querySelectorAll('.question-card').forEach(el => { el.classList.remove('bg-gray-600', 'border-yellow-400', 'shadow-lg', 'scale-[1.02]'); const isSolved = el.getAttribute('data-solved') === "true"; if(isSolved) { el.classList.add('bg-emerald-900/50', 'border-emerald-500'); el.classList.remove('bg-gray-700', 'border-gray-500'); } else { el.classList.add('bg-gray-700', 'border-gray-500'); el.classList.remove('bg-emerald-900/50', 'border-emerald-500'); } }); const card = document.getElementById(`q-card-${id}`); if(card) { card.classList.remove('bg-gray-700', 'border-gray-500', 'bg-emerald-900/50', 'border-emerald-500'); card.classList.add('bg-gray-600', 'border-yellow-400', 'shadow-lg', 'scale-[1.02]'); } }
+        async function syncState() { try { const res = await fetch('/api/status'); const data = await res.json(); document.getElementById('contest-timer').innerText = formatTime(data.remaining); if (data.q_ts > lastQUpdate) { lastQUpdate = data.q_ts; if(contestRunning) loadQuestions(); } if (data.running && !contestRunning) { contestRunning = true; loadQuestions(); document.getElementById('output-console').innerText = ">>> CONTEST STARTED."; } else if (!data.running && contestRunning) { contestRunning = false; /* Avoid Alert here too */ document.getElementById('output-console').innerText = "TIME UP!"; } else if (!data.running) document.getElementById('question-list').innerHTML = `<div class='p-8 text-center text-gray-500'>AWAITING HOST</div>`; } catch (err) {} }
+        async function loadQuestions() { const res = await fetch('/api/questions'); const qs = await res.json(); window.contestQuestions = qs; document.getElementById('question-list').innerHTML = qs.map(q => { let bgClass = q.solved ? "bg-emerald-900/50 border-emerald-500" : "bg-gray-700 border-gray-500"; let statusIcon = q.solved ? `<span class="text-green-400 ml-2">✓</span>` : ""; return `<div id="q-card-${q.id}" data-solved="${q.solved}" class="question-card p-4 border-l-4 rounded mb-2 cursor-pointer hover:opacity-90 transition-all duration-200 ${bgClass}" onclick="selectQuestion(${q.id}, '${q.s_in}')"><div class="flex justify-between font-bold text-sm"><span class="text-white">${q.title} ${statusIcon}</span><span class="text-blue-300 text-xs px-2 py-0.5 bg-black/30 rounded border border-blue-900/50">${q.points} PTS</span></div><p class="text-xs text-gray-400 mt-1 truncate">${q.desc}</p></div>`; }).join(''); if(currentQuestionId) highlightCard(currentQuestionId); }
 
         setInterval(syncState, 1000); setInterval(updateLeaderboard, 5000); setInterval(checkBroadcasts, 3000); syncState();
     </script>
