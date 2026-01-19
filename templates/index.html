@@ -8,50 +8,36 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
     <style>
-        #practice-frame { height: calc(100vh - 9rem); }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #111827; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4B5563; }
-        
-        .rank-1 { color: #FCD34D; text-shadow: 0 0 10px rgba(252, 211, 77, 0.5); } 
-        .rank-2 { color: #E5E7EB; text-shadow: 0 0 10px rgba(229, 231, 235, 0.5); } 
-        .rank-3 { color: #FDBA74; text-shadow: 0 0 10px rgba(253, 186, 116, 0.5); } 
-        
         .CodeMirror { height: 100% !important; font-family: 'Courier New', Courier, monospace; font-size: 16px; }
+        .resizer-v { width: 4px; cursor: col-resize; background-color: #374151; transition: background 0.2s; z-index: 50; flex-shrink: 0; }
+        .resizer-v:hover, .resizer-v.resizing { background-color: #3B82F6; }
+        .resizer-h { height: 4px; cursor: row-resize; background-color: #374151; transition: background 0.2s; z-index: 50; flex-shrink: 0; }
+        .resizer-h:hover, .resizer-h.resizing { background-color: #3B82F6; }
     </style>
 </head>
-<body class="bg-gray-900 text-white font-mono h-screen flex flex-col">
+<body class="bg-gray-900 text-white font-mono h-screen flex flex-col overflow-hidden">
 
     <div id="start-overlay" class="fixed inset-0 z-[100] flex flex-col justify-center items-center bg-black">
         <h1 class="text-6xl font-bold text-green-500 mb-8 tracking-widest animate-pulse">>> SYSTEM READY</h1>
-        <p class="text-gray-400 mb-12 text-center max-w-md">
-            Click below to initialize the contest environment.<br>
-            <span class="text-red-500 font-bold">WARNING:</span> Exiting full-screen or switching tabs will be recorded as a violation.
-        </p>
-        <button onclick="enterContest()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-12 rounded text-xl border-2 border-green-400 shadow-[0_0_30px_rgba(74,222,128,0.5)] transition-all transform hover:scale-105">
-            ENTER CONTEST
-        </button>
+        <p class="text-gray-400 mb-12 text-center max-w-md">Click below to initialize the contest environment.<br><span class="text-red-500 font-bold">WARNING:</span> Exiting full-screen or switching tabs will be recorded as a violation.</p>
+        <button onclick="enterContest()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-12 rounded text-xl border-2 border-green-400 shadow-[0_0_30px_rgba(74,222,128,0.5)] transition-all transform hover:scale-105">ENTER CONTEST</button>
     </div>
 
     <div id="violation-modal" class="hidden fixed inset-0 bg-black/95 z-[90] flex justify-center items-center backdrop-blur-md">
         <div class="bg-gray-900 border-2 border-red-600 rounded-lg p-10 max-w-lg text-center shadow-[0_0_100px_rgba(220,38,38,0.6)]">
-            <div class="text-7xl mb-6">⚠️</div>
-            <h2 class="text-4xl font-bold text-red-500 mb-4 tracking-widest">PROCTORING ALERT</h2>
-            <p class="text-white text-xl mb-8 leading-relaxed">
-                <span id="violation-reason" class="font-bold text-red-300">Focus Lost</span><br>
-                This incident has been logged.
-            </p>
-            <button onclick="dismissViolation()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-4 px-10 rounded border border-red-500 w-full text-lg uppercase tracking-wider">
-                Return to Fullscreen
-            </button>
+            <div class="text-7xl mb-6">⚠️</div><h2 class="text-4xl font-bold text-red-500 mb-4 tracking-widest">PROCTORING ALERT</h2>
+            <p class="text-white text-xl mb-8 leading-relaxed"><span id="violation-reason" class="font-bold text-red-300">Focus Lost</span><br>This incident has been logged.</p>
+            <button onclick="dismissViolation()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-4 px-10 rounded border border-red-500 w-full text-lg uppercase tracking-wider">Return to Fullscreen</button>
         </div>
     </div>
 
-    <div id="broadcast-modal" class="hidden fixed inset-0 bg-black/80 z-[80] flex justify-center items-center backdrop-blur-sm">
-        <div class="bg-gray-800 border-2 border-pink-500 rounded-lg shadow-[0_0_50px_rgba(236,72,153,0.3)] max-w-lg w-full p-6 text-center">
-            <div class="text-5xl mb-4">📢</div>
-            <h2 class="text-2xl font-bold text-white mb-2 uppercase tracking-widest">System Message</h2>
+    <div id="broadcast-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex justify-center items-center backdrop-blur-sm">
+        <div class="bg-gray-800 border-2 border-pink-500 rounded-lg shadow-lg max-w-lg w-full p-6 text-center">
+            <div class="text-5xl mb-4">📢</div><h2 class="text-2xl font-bold text-white mb-2 uppercase">System Message</h2>
             <div id="broadcast-content" class="text-pink-300 text-lg font-mono mb-6 py-4 border-y border-gray-700"></div>
             <button onclick="closeBroadcast()" class="bg-pink-600 hover:bg-pink-500 text-white px-8 py-3 rounded font-bold w-full">ACKNOWLEDGE</button>
         </div>
@@ -59,38 +45,26 @@
 
     <div id="result-modal" class="hidden fixed inset-0 bg-black/80 z-[70] flex justify-center items-center backdrop-blur-sm">
         <div id="result-box" class="bg-gray-900 border-4 rounded-xl p-8 max-w-md w-full text-center shadow-2xl transform transition-all scale-100">
-            <div id="result-icon" class="text-6xl mb-4"></div>
-            <h2 id="result-title" class="text-3xl font-black mb-2 uppercase tracking-widest"></h2>
-            <p id="result-msg" class="text-lg mb-6 font-bold text-gray-300"></p>
-            <p id="result-detail" class="text-sm font-mono bg-black/30 p-2 rounded text-gray-400 mb-6"></p>
-            <button onclick="closeResult()" id="result-btn" class="text-white font-bold py-3 px-8 rounded-lg w-full transition-transform hover:scale-105 active:scale-95 shadow-lg">
-                CONTINUE
-            </button>
+            <div id="result-icon" class="text-6xl mb-4"></div><h2 id="result-title" class="text-3xl font-black mb-2 uppercase tracking-widest"></h2>
+            <p id="result-msg" class="text-lg mb-6 font-bold text-gray-300"></p><p id="result-detail" class="text-sm font-mono bg-black/30 p-2 rounded text-gray-400 mb-6"></p>
+            <button onclick="closeResult()" id="result-btn" class="text-white font-bold py-3 px-8 rounded-lg w-full transition-transform hover:scale-105 active:scale-95 shadow-lg">CONTINUE</button>
         </div>
     </div>
 
     <div id="confirm-modal" class="hidden fixed inset-0 bg-black/80 z-[85] flex justify-center items-center backdrop-blur-sm">
         <div class="bg-gray-800 border-2 border-yellow-500 rounded-lg shadow-xl max-w-md w-full p-6 text-center">
-            <div class="text-5xl mb-4">⚠️</div>
-            <h2 class="text-2xl font-bold text-yellow-400 mb-4">Input Warning</h2>
-            <p class="text-gray-300 mb-6 text-sm">
-                Your code expects input (<span class="font-mono text-yellow-300">&</span> or <span class="font-mono text-yellow-300">~</span>), but the <span class="font-bold text-white">Standard Input</span> box is empty.<br><br>
-                This might cause an infinite loop or Time Limit Exceeded.
-            </p>
-            <div class="flex gap-4">
-                <button onclick="resolveRunConfirm(false)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded transition-colors">CANCEL</button>
-                <button onclick="resolveRunConfirm(true)" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded transition-colors">RUN ANYWAY</button>
-            </div>
+            <div class="text-5xl mb-4">⚠️</div><h2 class="text-2xl font-bold text-yellow-400 mb-4">Input Warning</h2>
+            <p class="text-gray-300 mb-6 text-sm">Your code expects input (<span class="font-mono text-yellow-300">&</span> or <span class="font-mono text-yellow-300">~</span>), but the Input box is empty.<br>Possible infinite loop.</p>
+            <div class="flex gap-4"><button onclick="resolveRunConfirm(false)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded">CANCEL</button><button onclick="resolveRunConfirm(true)" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded">RUN ANYWAY</button></div>
         </div>
     </div>
 
     <div id="main-app" class="hidden flex-col h-full bg-gray-900">
-        <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10">
+        <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10 shrink-0">
             <div class="flex items-center gap-4">
                 <h1 class="text-xl font-bold text-green-400 tracking-wider">>> BEFUNGE_ROYALE_93</h1>
                 <div class="flex items-center gap-3 bg-black px-4 py-1 rounded border border-gray-600">
-                    <span class="text-gray-400 text-xs uppercase">Operator</span>
-                    <span class="font-bold text-white text-sm">{{ user.username }}</span>
+                    <span class="text-gray-400 text-xs uppercase">Operator</span><span class="font-bold text-white text-sm">{{ user.username }}</span>
                     <div id="score-display" class="pl-3 border-l border-gray-600 text-yellow-400 font-bold text-sm">Score: {{ user.score }}</div>
                 </div>
             </div>
@@ -100,277 +74,122 @@
             </div>
         </header>
 
-        <div class="flex border-b border-gray-700 bg-gray-800 z-10 relative">
+        <div class="flex border-b border-gray-700 bg-gray-800 z-10 relative shrink-0">
             <button onclick="showView('contest')" id="nav-btn-contest" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500">CONTEST ARENA</button>
             <button onclick="showView('practice')" id="nav-btn-practice" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent">PRACTICE ARENA</button>
+            <button onclick="toggleSyntax()" id="nav-btn-syntax" class="flex-1 py-3 text-sm font-bold text-cyan-500 bg-gray-900 border-b-2 border-transparent hover:bg-gray-800 transition-colors uppercase">{{ doc_name }}</button>
         </div>
 
-        <div class="flex-1 relative overflow-hidden">
-            <div id="contest-view" class="flex h-full absolute inset-0">
-                
-                <div class="w-[30%] bg-gray-800 border-r border-gray-700 flex flex-col">
-                    <div class="flex border-b border-gray-700">
-                        <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">PROBLEM SET</button>
-                        <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">MY SUBMISSIONS</button>
-                    </div>
-                    <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar"><div id="question-list" class="space-y-3"></div></div>
-                    <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900">
-                        <table class="w-full text-left text-xs"><thead class="bg-black text-gray-400 border-b border-gray-800"><tr><th class="p-3 w-20">Time</th><th class="p-3">Problem</th><th class="p-3 text-right">Result</th></tr></thead><tbody id="submission-list"></tbody></table>
-                    </div>
-                </div>
-
-                <div class="w-[40%] flex flex-col border-r border-gray-700 relative bg-gray-900">
-                    
-                    <div class="h-[55%] flex flex-col border-b-4 border-gray-800">
-                        <div class="bg-gray-800 px-3 py-1 text-xs text-gray-400 uppercase font-bold tracking-wider flex justify-between items-center">
-                            <span>Source Code</span>
-                            <span class="text-gray-600">Befunge-93</span>
+        <div class="flex-1 flex overflow-hidden">
+            <div id="main-stage" class="flex-1 flex relative min-w-[400px]">
+                <div id="view-contest" class="flex w-full h-full absolute inset-0">
+                    <div id="panel-left" class="bg-gray-800 flex flex-col min-w-[250px]" style="width: 40%;">
+                        <div class="flex border-b border-gray-700 shrink-0">
+                            <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">PROBLEM SET</button>
+                            <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">MY SUBMISSIONS</button>
                         </div>
-                        <div class="flex-1 text-base relative">
-                            <textarea id="code-editor">v
-> "Hello World" ,,,,,,,,,,, @</textarea>
-                        </div>
+                        <div id="view-questions" class="flex-1 overflow-y-auto p-4 custom-scrollbar"><div id="question-list" class="space-y-3"></div></div>
+                        <div id="view-submissions" class="hidden flex-1 overflow-y-auto p-0 custom-scrollbar bg-gray-900"><table class="w-full text-left text-xs"><thead class="bg-black text-gray-400 border-b border-gray-800"><tr><th class="p-3 w-20">Time</th><th class="p-3">Problem</th><th class="p-3 text-right">Result</th></tr></thead><tbody id="submission-list"></tbody></table></div>
                     </div>
-
-                    <div class="flex-1 flex flex-col min-h-0 bg-black">
-                        <div class="p-2 border-b border-gray-800 bg-gray-800/30">
-                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Standard Input (STDIN)</span>
-                            <input id="custom-input" type="text" class="bg-transparent text-green-400 w-full font-mono text-sm focus:outline-none placeholder-gray-700 mt-1" placeholder="Type input here...">
+                    <div id="resizer-1" class="resizer-v"></div>
+                    <div id="panel-middle" class="flex-1 flex flex-col min-w-[300px]">
+                        <div id="panel-editor" class="flex flex-col border-b border-gray-800 min-h-[150px]" style="height: 55%;">
+                            <div class="bg-gray-800 px-3 py-1 text-xs text-gray-400 uppercase font-bold tracking-wider flex justify-between items-center shrink-0"><span>Source Code</span><span class="text-gray-600">Befunge-93</span></div>
+                            <div class="flex-1 text-base relative"><textarea id="code-editor">v
+> "Hello World" ,,,,,,,,,,, @</textarea></div>
                         </div>
-                        <div class="flex-1 flex flex-col min-h-0">
-                            <div class="p-2 bg-gray-800/30 border-b border-gray-800">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Console Output</span>
+                        <div id="resizer-2" class="resizer-h"></div>
+                        <div id="panel-terminal" class="flex-1 flex flex-col min-h-[150px] bg-black">
+                            <div class="p-2 border-b border-gray-800 bg-gray-800/30 shrink-0"><span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Standard Input (STDIN)</span><input id="custom-input" type="text" class="bg-transparent text-green-400 w-full font-mono text-sm focus:outline-none placeholder-gray-700 mt-1" placeholder="Type input here..."></div>
+                            <div class="flex-1 flex flex-col min-h-0"><div class="p-2 bg-gray-800/30 border-b border-gray-800 shrink-0"><span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Console Output</span></div><pre id="output-console" class="flex-1 bg-black text-green-500 p-3 font-mono text-sm overflow-auto custom-scrollbar leading-relaxed">Waiting for execution...</pre></div>
+                            <div class="p-3 bg-gray-800 border-t border-gray-700 flex gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.3)] z-20 shrink-0">
+                                <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-3 rounded font-bold shadow-lg flex items-center justify-center gap-2 text-sm border-b-4 border-blue-900"><span class="text-lg">▶</span> RUN CODE</button>
+                                <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-3 rounded font-bold shadow-lg flex items-center justify-center gap-2 text-sm border-b-4 border-green-900"><span class="text-lg">★</span> SUBMIT SOLUTION</button>
                             </div>
-                            <pre id="output-console" class="flex-1 bg-black text-green-500 p-3 font-mono text-sm overflow-auto custom-scrollbar leading-relaxed">Waiting for execution...</pre>
                         </div>
                     </div>
-
-                    <div class="p-3 bg-gray-800 border-t border-gray-700 flex gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.3)] z-20">
-                        <button onclick="runCode()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-3 rounded font-bold shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm tracking-wide border-b-4 border-blue-900">
-                            <span class="text-lg">▶</span> RUN CODE
-                        </button>
-                        <button onclick="submitCode()" class="flex-1 bg-green-700 hover:bg-green-600 text-white py-3 rounded font-bold shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm tracking-wide border-b-4 border-green-900">
-                            <span class="text-lg">★</span> SUBMIT SOLUTION
-                        </button>
-                    </div>
-
                 </div>
-
-                <div class="w-[30%] flex flex-col bg-gray-900 border-l border-gray-700">
-                    <div class="p-4 bg-gray-800 border-b border-gray-700 shadow-md z-10 flex items-center justify-between">
-                        <h3 class="text-sm font-bold text-yellow-500 uppercase tracking-widest flex items-center gap-2">
-                            <span>🏆</span> Global Standings
-                        </h3>
-                        <span class="text-[10px] bg-gray-700 text-gray-300 px-2 py-1 rounded animate-pulse">LIVE</span>
-                    </div>
-                    
-                    <div class="flex-1 overflow-y-auto custom-scrollbar bg-gray-900/50">
-                        <table class="w-full text-left text-sm border-collapse">
-                            <thead class="bg-gray-800 text-gray-400 sticky top-0 shadow-sm">
-                                <tr>
-                                    <th class="p-3 font-semibold text-xs uppercase">Rank</th>
-                                    <th class="p-3 font-semibold text-xs uppercase">Operator</th>
-                                    <th class="p-3 text-right font-semibold text-xs uppercase">Score</th>
-                                    <th class="p-3 text-right pr-4 font-semibold text-xs uppercase">Time</th>
-                                </tr>
-                            </thead>
-                            <tbody id="leaderboard-body" class="divide-y divide-gray-800"></tbody>
-                        </table>
-                    </div>
-                </div>
-
+                <iframe id="practice-frame" src="/practice" class="hidden w-full h-full border-0 absolute inset-0 bg-[#1a1a1a]"></iframe>
             </div>
-            <iframe id="practice-frame" src="/practice" class="hidden w-full border-0 absolute inset-0 z-20"></iframe>
+            <div id="resizer-3" class="resizer-v"></div>
+            <div id="panel-right" class="flex flex-col bg-gray-900 border-l border-gray-700 min-w-[200px]" style="width: 30%;">
+                <div id="view-leaderboard" class="flex flex-col h-full">
+                    <div class="p-4 bg-gray-800 border-b border-gray-700 shadow-md z-10 flex items-center justify-between shrink-0"><h3 class="text-sm font-bold text-yellow-500 uppercase tracking-widest flex items-center gap-2"><span>🏆</span> Global Standings</h3><span class="text-[10px] bg-gray-700 text-gray-300 px-2 py-1 rounded animate-pulse">LIVE</span></div>
+                    <div class="flex-1 overflow-y-auto custom-scrollbar bg-gray-900/50"><table class="w-full text-left text-sm border-collapse"><thead class="bg-gray-800 text-gray-400 sticky top-0 shadow-sm"><tr><th class="p-3 font-semibold text-xs uppercase">Rank</th><th class="p-3 font-semibold text-xs uppercase">Operator</th><th class="p-3 text-right font-semibold text-xs uppercase">Score</th><th class="p-3 text-right pr-4 font-semibold text-xs uppercase">Time</th></tr></thead><tbody id="leaderboard-body" class="divide-y divide-gray-800"></tbody></table></div>
+                </div>
+                <div id="view-syntax" class="hidden flex-col h-full bg-gray-800">
+                    <div class="p-4 bg-cyan-900/30 border-b border-cyan-700 shadow-md z-10 flex items-center justify-between shrink-0"><h3 id="syntax-title" class="text-sm font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2"><span>📄</span> <span id="doc-header-title">DOCUMENT</span></h3><button onclick="toggleSyntax()" class="text-xs bg-gray-900 hover:bg-gray-700 text-white px-2 py-1 rounded border border-gray-600">CLOSE ✕</button></div>
+                    <iframe id="syntax-iframe" src="/get_active_document" class="flex-1 w-full border-0 bg-white"></iframe>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const resizer1 = document.getElementById('resizer-1'), resizer2 = document.getElementById('resizer-2'), resizer3 = document.getElementById('resizer-3');
+            const panelLeft = document.getElementById('panel-left'), panelMiddle = document.getElementById('panel-middle'), panelRight = document.getElementById('panel-right'), panelEditor = document.getElementById('panel-editor'), mainStage = document.getElementById('main-stage');
+            const makeResizable = (resizer, prevEl, nextEl, direction) => {
+                let startX, startY, startWidthLeft, startHeightTop, containerSize;
+                const onDown = (e) => { e.preventDefault(); resizer.classList.add('resizing'); startX = e.clientX; startY = e.clientY; if(type === 'LR') { const parentW = prevEl.parentElement.getBoundingClientRect().width; startWidthLeft = (prevEl.getBoundingClientRect().width / parentW) * 100; containerSize = parentW; } else { const parentH = prevEl.parentElement.getBoundingClientRect().height; startHeightTop = (prevEl.getBoundingClientRect().height / parentH) * 100; containerSize = parentH; } document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); };
+                const onMove = (e) => { if (direction === 'H') { const dxPx = e.clientX - startX; const newLeft = startWidthLeft + ((dxPx / containerSize) * 100); if (newLeft > 10 && newLeft < 90) prevEl.style.width = `${newLeft}%`; } else { const dyPx = e.clientY - startY; const newTop = startHeightTop + ((dyPx / containerSize) * 100); if (newTop > 20 && newTop < 80) prevEl.style.height = `${newTop}%`; } };
+                const onUp = () => { resizer.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; resizer.addEventListener('mousedown', onDown);
+            };
+            resizer1.addEventListener('mousedown', (e) => { e.preventDefault(); const startX = e.clientX; const parentW = panelLeft.parentElement.getBoundingClientRect().width; const startLeftW = (panelLeft.getBoundingClientRect().width / parentW) * 100; const onMove = (em) => { const dx = em.clientX - startX; const newLeft = startLeftW + ((dx / parentW) * 100); if (newLeft > 15 && newLeft < 60) panelLeft.style.width = `${newLeft}%`; }; const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); });
+            const setupVertical = (resizer, target) => { let startY, startH, parentH; resizer.addEventListener('mousedown', (e) => { e.preventDefault(); resizer.classList.add('resizing'); startY = e.clientY; parentH = target.parentElement.getBoundingClientRect().height; startH = (target.getBoundingClientRect().height / parentH) * 100; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); }); const onMove = (e) => { const dy = e.clientY - startY; const newH = startH + ((dy / parentH) * 100); if (newH > 20 && newH < 80) target.style.height = `${newH}%`; }; const onUp = () => { resizer.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; }; setupVertical(resizer2, panelEditor);
+            resizer3.addEventListener('mousedown', (e) => { e.preventDefault(); resizer3.classList.add('resizing'); const startX = e.clientX; const parentW = document.body.getBoundingClientRect().width; const startRightW = (panelRight.getBoundingClientRect().width / parentW) * 100; const onMove = (em) => { const dx = em.clientX - startX; const newRightW = startRightW - ((dx / parentW) * 100); if (newRightW > 15 && newRightW < 50) panelRight.style.width = `${newRightW}%`; }; const onUp = () => { resizer3.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); });
+        });
+
         var editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), { lineNumbers: false, theme: "monokai", mode: "text", lineWrapping: true });
-        let currentQuestionId = null, contestRunning = false, contestQuestions = [], lastQUpdate = 0;
-        let isProctoringActive = false;
-
-        function formatTime(seconds) {
-            if (seconds <= 0) return "ENDED";
-            const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = Math.floor(seconds % 60);
-            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-        }
-
-        function formatLeaderboardTime(totalSeconds) {
-            const m = Math.floor(totalSeconds / 60);
-            const s = Math.floor(totalSeconds % 60);
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-
-        function enterContest() {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) elem.requestFullscreen();
-            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-            document.getElementById('start-overlay').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
-            document.getElementById('main-app').classList.add('flex');
-            setTimeout(() => { isProctoringActive = true; }, 1000);
-        }
-
-        async function logViolation(reason) {
-            if (!isProctoringActive) return;
-            isProctoringActive = false; 
-            document.getElementById('violation-reason').innerText = reason;
-            document.getElementById('violation-modal').classList.remove('hidden');
-            await fetch('/api/report_violation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reason: reason}) });
-        }
-
-        function dismissViolation() {
-            document.getElementById('violation-modal').classList.add('hidden');
-            if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => {}); }
-            setTimeout(() => { isProctoringActive = true; }, 1000);
-        }
-
-        document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isProctoringActive) logViolation("Exited Fullscreen"); });
-        document.addEventListener('webkitfullscreenchange', () => { if (!document.webkitFullscreenElement && isProctoringActive) logViolation("Exited Fullscreen"); });
-        document.addEventListener("visibilitychange", () => { if (document.hidden && isProctoringActive) logViolation("Tab Switch / Focus Lost"); });
-
-        async function handleLogout() {
-            isProctoringActive = false; 
-            // USING NATIVE CONFIRM HERE IS OKAY AS LAST STEP, BUT BETTER TO USE CUSTOM IF STRICT
-            // For now, let's trust the user knows logout ends session. 
-            // Ideally, replace this with a custom modal too, but it's less critical than runCode.
-            if(confirm("Logging out will record a violation. Proceed?")) {
-                await fetch('/api/report_violation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reason: 'Manual Logout'}) });
-                window.location.href = "/logout";
-            } else { isProctoringActive = true; }
-        }
-
-        function showView(viewName) {
-            const cView = document.getElementById('contest-view'), pFrame = document.getElementById('practice-frame');
-            const nContest = document.getElementById('nav-btn-contest'), nPractice = document.getElementById('nav-btn-practice');
-            if(viewName === 'contest') {
-                cView.classList.remove('hidden'); pFrame.classList.add('hidden');
-                nContest.className = "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors";
-                nPractice.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
-            } else {
-                cView.classList.add('hidden'); pFrame.classList.remove('hidden');
-                nContest.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
-                nPractice.className = "flex-1 py-3 text-sm font-bold text-green-400 bg-gray-800 border-b-2 border-green-500 transition-colors";
-                pFrame.contentWindow.focus();
-            }
-        }
-
-        function switchTab(t) {
-            const qBtn = document.getElementById('tab-btn-questions');
-            const sBtn = document.getElementById('tab-btn-submissions');
-            document.getElementById('view-questions').classList.toggle('hidden', t!=='questions');
-            document.getElementById('view-submissions').classList.toggle('hidden', t==='questions');
-            if (t === 'questions') {
-                qBtn.className = "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors";
-                sBtn.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
-            } else {
-                qBtn.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors";
-                sBtn.className = "flex-1 py-3 text-sm font-bold text-purple-400 bg-gray-800 border-b-2 border-purple-500 transition-colors";
-                loadSubmissions();
-            }
-        }
-
-        // --- RESULTS MODAL ---
-        const successPhrases = ["Absolute Cinema!", "Syntax Sorcery!", "Code Wizardry!", "Legendary Status!", "Pure Genius!", "Flawless Logic!", "Algorithm Ascended!"];
-        const failPhrases = ["Nice Try!", "Debug & Destroy!", "Don't Give Up!", "Almost There!", "Keep Pushing!", "Logic Loading...", "Error 404: Logic Not Found"];
-
-        function showResult(title, msg, isSuccess) {
-            const modal = document.getElementById('result-modal'), box = document.getElementById('result-box'), icon = document.getElementById('result-icon'), tEl = document.getElementById('result-title'), mEl = document.getElementById('result-msg'), dEl = document.getElementById('result-detail'), btn = document.getElementById('result-btn');
-            modal.classList.remove('hidden'); dEl.innerText = msg; 
-            if(isSuccess) {
-                box.className = "bg-gray-900 border-4 border-green-500 rounded-xl p-8 max-w-md w-full text-center shadow-[0_0_50px_rgba(34,197,94,0.4)] transform transition-all scale-100";
-                icon.innerText = "🏆"; tEl.className = "text-3xl font-black mb-2 uppercase tracking-widest text-green-400"; tEl.innerText = "PASSED";
-                mEl.className = "text-xl mb-6 font-bold text-white"; mEl.innerText = successPhrases[Math.floor(Math.random() * successPhrases.length)];
-                btn.className = "bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg w-full transition-transform hover:scale-105 active:scale-95 shadow-lg";
-            } else {
-                box.className = "bg-gray-900 border-4 border-yellow-500 rounded-xl p-8 max-w-md w-full text-center shadow-[0_0_50px_rgba(234,179,8,0.4)] transform transition-all scale-100";
-                icon.innerText = "🐛"; tEl.className = "text-3xl font-black mb-2 uppercase tracking-widest text-yellow-400"; tEl.innerText = "FAILED";
-                mEl.className = "text-xl mb-6 font-bold text-white"; mEl.innerText = failPhrases[Math.floor(Math.random() * failPhrases.length)];
-                btn.className = "bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-8 rounded-lg w-full transition-transform hover:scale-105 active:scale-95 shadow-lg";
-            }
-        }
+        let currentQuestionId = null, contestRunning = false, contestQuestions = [], lastQUpdate = 0, currentDocId = 0, isProctoringActive = false;
+        function formatTime(s) { if (s <= 0) return "ENDED"; const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=Math.floor(s%60); return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
+        function formatLeaderboardTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
+        function toggleSyntax() { const lb = document.getElementById('view-leaderboard'), syn = document.getElementById('view-syntax'), btn = document.getElementById('nav-btn-syntax'); if (syn.classList.contains('hidden')) { lb.classList.add('hidden'); syn.classList.remove('hidden'); syn.classList.add('flex'); btn.className = "flex-1 py-3 text-sm font-bold text-cyan-400 bg-gray-800 border-b-2 border-cyan-500 transition-colors uppercase"; } else { lb.classList.remove('hidden'); syn.classList.add('hidden'); syn.classList.remove('flex'); btn.className = "flex-1 py-3 text-sm font-bold text-cyan-500 bg-gray-900 border-b-2 border-transparent hover:bg-gray-800 transition-colors uppercase"; } }
+        function showView(v) { const cv = document.getElementById('view-contest'), pf = document.getElementById('practice-frame'), nc = document.getElementById('nav-btn-contest'), np = document.getElementById('nav-btn-practice'); if(v === 'contest') { cv.classList.remove('hidden'); pf.classList.add('hidden'); nc.className = "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors"; np.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors"; } else { cv.classList.add('hidden'); pf.classList.remove('hidden'); nc.className = "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors"; np.className = "flex-1 py-3 text-sm font-bold text-green-400 bg-gray-800 border-b-2 border-green-500 transition-colors"; pf.contentWindow.focus(); } }
+        function switchTab(t) { document.getElementById('view-questions').classList.toggle('hidden', t!=='questions'); document.getElementById('view-submissions').classList.toggle('hidden', t==='questions'); document.getElementById('tab-btn-questions').className = t==='questions' ? "flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors" : "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors"; document.getElementById('tab-btn-submissions').className = t!=='questions' ? "flex-1 py-3 text-sm font-bold text-purple-400 bg-gray-800 border-b-2 border-purple-500 transition-colors" : "flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors"; if(t!=='questions') loadSubmissions(); }
+        function enterContest() { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); document.getElementById('start-overlay').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden'); document.getElementById('main-app').classList.add('flex'); setTimeout(() => { isProctoringActive = true; }, 1000); }
+        async function logViolation(r) { if (!isProctoringActive) return; isProctoringActive = false; document.getElementById('violation-reason').innerText = r; document.getElementById('violation-modal').classList.remove('hidden'); await fetch('/api/report_violation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reason: r}) }); }
+        function dismissViolation() { document.getElementById('violation-modal').classList.add('hidden'); if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); setTimeout(() => { isProctoringActive = true; }, 1000); }
+        document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isProctoringActive) logViolation("Exited Fullscreen"); }); document.addEventListener("visibilitychange", () => { if (document.hidden && isProctoringActive) logViolation("Tab Switch / Focus Lost"); });
+        async function handleLogout() { isProctoringActive = false; if(confirm("Logout?")) { await fetch('/api/report_violation', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({reason: 'Manual Logout'}) }); window.location.href = "/logout"; } else { isProctoringActive = true; } }
+        function showResult(t, m, s) { const md = document.getElementById('result-modal'); md.classList.remove('hidden'); document.getElementById('result-title').innerText = t; document.getElementById('result-title').className = `text-3xl font-black mb-2 uppercase tracking-widest ${s?'text-green-400':'text-yellow-400'}`; document.getElementById('result-detail').innerText = m; document.getElementById('result-box').className = `bg-gray-900 border-4 ${s?'border-green-500':'border-yellow-500'} rounded-xl p-8 max-w-md w-full text-center shadow-2xl`; document.getElementById('result-icon').innerText = s ? "🏆" : "🐛"; }
         function closeResult() { document.getElementById('result-modal').classList.add('hidden'); }
-
-        // --- NEW: RUN CODE LOGIC WITH CUSTOM MODAL (NO NATIVE CONFIRM) ---
-        function runCode() {
-            const code = editor.getValue();
-            const input = document.getElementById('custom-input').value;
-            // Check condition
-            if ((code.includes('&') || code.includes('~')) && !input.trim()) {
-                document.getElementById('confirm-modal').classList.remove('hidden'); // SHOW HTML MODAL
-            } else {
-                executeRun(); // SAFE TO RUN
-            }
-        }
-
-        // Called by buttons inside #confirm-modal
-        function resolveRunConfirm(shouldRun) {
-            document.getElementById('confirm-modal').classList.add('hidden');
-            if (shouldRun) {
-                executeRun();
-            } else {
-                document.getElementById('custom-input').focus();
-            }
-        }
-
-        // Actual API Fetch
-        async function executeRun() {
-            const code = editor.getValue();
-            const input = document.getElementById('custom-input').value;
-            document.getElementById('output-console').innerText = "Running...";
-            try { 
-                const res = await fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: code, input: input}) }); 
-                const data = await res.json(); 
-                document.getElementById('output-console').innerText = data.output; 
-            } catch(e) { document.getElementById('output-console').innerText = "Error: Connection Failed"; } 
-        }
+        function runCode() { const c = editor.getValue(), i = document.getElementById('custom-input').value; if ((c.includes('&') || c.includes('~')) && !i.trim()) document.getElementById('confirm-modal').classList.remove('hidden'); else executeRun(); }
+        function resolveRunConfirm(go) { document.getElementById('confirm-modal').classList.add('hidden'); if(go) executeRun(); else document.getElementById('custom-input').focus(); }
+        async function executeRun() { const c = editor.getValue(), i = document.getElementById('custom-input').value; if(currentQuestionId!==null) localStorage.setItem(`draft_${currentQuestionId}`, c); document.getElementById('output-console').innerText = "Running..."; try { const res = await fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: c, input: i}) }); const d = await res.json(); document.getElementById('output-console').innerText = d.output; } catch(e) { document.getElementById('output-console').innerText = "Error"; } }
+        async function submitCode() { if(!contestRunning || !currentQuestionId) return alert("Select a problem!"); const c = editor.getValue(); localStorage.setItem(`draft_${currentQuestionId}`, c); try { const res = await fetch('/api/submit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question_id: currentQuestionId, code: c}) }); const d = await res.json(); if(d.status === 'passed') { showResult("PASSED", "Points Awarded!", true); document.getElementById('score-display').innerText = `Score: ${d.new_score}`; updateLeaderboard(); loadQuestions(); } else { showResult("FAILED", d.details, false); } } catch(e) {} }
+        async function updateLeaderboard() { const res = await fetch('/api/leaderboard'); const d = await res.json(); const b = document.getElementById('leaderboard-body'); if(d.frozen) { b.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-blue-300 font-bold uppercase tracking-widest animate-pulse">❄️ Frozen ❄️</td></tr>`; return; } b.innerHTML = d.map((u,i) => `<tr class="border-b border-gray-800 hover:bg-gray-800"><td class="p-3 pl-4 text-gray-400">#${i+1}</td><td class="p-3 font-bold text-white">${u.username}</td><td class="p-3 text-right font-bold text-green-400">${u.score}</td><td class="p-3 text-right pr-4 text-gray-500 font-mono text-xs">${formatLeaderboardTime(u.time)}</td></tr>`).join(''); }
+        async function loadSubmissions() { const res = await fetch('/api/my_submissions'); const s = await res.json(); document.getElementById('submission-list').innerHTML = s.map(x => `<tr><td class="p-2 text-gray-500">${x.time}</td><td class="p-2">${x.title}</td><td class="p-2 text-right ${x.status==='passed'?'text-green-400':'text-red-400'}">${x.details}</td></tr>`).join(''); }
         
-        async function submitCode() { 
-            if(!contestRunning || !currentQuestionId) {
-                // Using a non-blocking toast or just logging to console is safer here, 
-                // but let's assume selecting a problem is done. 
-                // To be safe, we can just highlight the list.
-                document.getElementById('view-questions').classList.add('animate-pulse');
-                setTimeout(() => document.getElementById('view-questions').classList.remove('animate-pulse'), 500);
-                return;
+        // --- UPDATED BROADCAST LOGIC ---
+        async function checkBroadcasts() { 
+            const res = await fetch('/api/broadcasts'); 
+            const msgs = await res.json(); 
+            for (let msg of msgs) { 
+                const key = `broadcast_${msg.id}`; 
+                const lastSeenTime = localStorage.getItem(key);
+                // Show if never seen OR if server time > stored time (re-sent)
+                if (!lastSeenTime || parseFloat(lastSeenTime) < msg.sent_at) { 
+                    document.getElementById('broadcast-content').innerText = msg.message; 
+                    document.getElementById('broadcast-modal').classList.remove('hidden'); 
+                    window.currentBroadcast = msg; 
+                    break; 
+                } 
             } 
-            try { 
-                const res = await fetch('/api/submit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question_id: currentQuestionId, code: editor.getValue()}) }); 
-                const data = await res.json(); 
-                if(data.status === 'passed') { 
-                    showResult("PASSED", "Points Awarded!", true);
-                    document.getElementById('score-display').innerText = `Score: ${data.new_score}`; 
-                    updateLeaderboard(); 
-                    loadQuestions(); 
-                } else { showResult("FAILED", data.details || data.message, false); }
-            } catch(e) { /* silent fail or custom modal */ } 
         }
-        
-        async function updateLeaderboard() { 
-            const res = await fetch('/api/leaderboard'); const data = await res.json(); 
-            const tbody = document.getElementById('leaderboard-body');
-            if (data.frozen) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center"><div class="text-4xl mb-2 animate-bounce">❄️</div><h3 class="text-blue-300 font-bold tracking-widest uppercase">Leaderboard Frozen</h3><p class="text-xs text-gray-500 mt-2">The final moments are hidden.<br>Keep coding!</p></td></tr>`;
-                return;
+        function closeBroadcast() { 
+            document.getElementById('broadcast-modal').classList.add('hidden'); 
+            if(window.currentBroadcast) {
+                // Store the exact timestamp of this broadcast
+                localStorage.setItem(`broadcast_${window.currentBroadcast.id}`, window.currentBroadcast.sent_at); 
             }
-            tbody.innerHTML = data.map((u, i) => {
-                let rankStyle = "text-gray-400"; let rankIcon = `#${i+1}`; let rowBg = "hover:bg-gray-800 transition-colors";
-                if (i === 0) { rankStyle = "rank-1 font-bold text-lg"; rankIcon = "🥇"; rowBg = "bg-yellow-900/20 hover:bg-yellow-900/30"; }
-                if (i === 1) { rankStyle = "rank-2 font-bold"; rankIcon = "🥈"; rowBg = "bg-gray-800/50 hover:bg-gray-800"; }
-                if (i === 2) { rankStyle = "rank-3 font-bold"; rankIcon = "🥉"; rowBg = "bg-orange-900/20 hover:bg-orange-900/30"; }
-                return `<tr class="border-b border-gray-800 ${rowBg}"><td class="p-3 pl-4 ${rankStyle}">${rankIcon}</td><td class="p-3 font-bold text-white tracking-wide">${u.username}</td><td class="p-3 text-right font-bold text-green-400 text-lg">${u.score}</td><td class="p-3 text-right pr-4 text-gray-500 font-mono text-xs">${formatLeaderboardTime(u.time)}</td></tr>`;
-            }).join(''); 
         }
-        
-        async function loadSubmissions() { const res = await fetch('/api/my_submissions'); const subs = await res.json(); document.getElementById('submission-list').innerHTML = subs.map(s => `<tr><td class="p-2 text-gray-500">${s.time}</td><td class="p-2">${s.title}</td><td class="p-2 text-right ${s.status==='passed'?'text-green-400':'text-red-400'}">${s.details}</td></tr>`).join(''); }
-        async function checkBroadcasts() { const res = await fetch('/api/broadcasts'); const msgs = await res.json(); for (let msg of msgs) { const key = `b_${msg.id}`; if (!localStorage.getItem(key) || parseFloat(localStorage.getItem(key)) < msg.sent_at) { document.getElementById('broadcast-content').innerText = msg.message; document.getElementById('broadcast-modal').classList.remove('hidden'); window.currB = msg; break; } } }
-        function closeBroadcast() { document.getElementById('broadcast-modal').classList.add('hidden'); if(window.currB) localStorage.setItem(`b_${window.currB.id}`, window.currB.sent_at); }
-        function selectQuestion(id, s_in) { currentQuestionId = id; if(s_in !== undefined) document.getElementById('custom-input').value = s_in; highlightCard(id); }
-        function highlightCard(id) { document.querySelectorAll('.question-card').forEach(el => { el.classList.remove('bg-gray-600', 'border-yellow-400', 'shadow-lg', 'scale-[1.02]'); const isSolved = el.getAttribute('data-solved') === "true"; if(isSolved) { el.classList.add('bg-emerald-900/50', 'border-emerald-500'); el.classList.remove('bg-gray-700', 'border-gray-500'); } else { el.classList.add('bg-gray-700', 'border-gray-500'); el.classList.remove('bg-emerald-900/50', 'border-emerald-500'); } }); const card = document.getElementById(`q-card-${id}`); if(card) { card.classList.remove('bg-gray-700', 'border-gray-500', 'bg-emerald-900/50', 'border-emerald-500'); card.classList.add('bg-gray-600', 'border-yellow-400', 'shadow-lg', 'scale-[1.02]'); } }
-        async function syncState() { try { const res = await fetch('/api/status'); const data = await res.json(); document.getElementById('contest-timer').innerText = formatTime(data.remaining); if (data.q_ts > lastQUpdate) { lastQUpdate = data.q_ts; if(contestRunning) loadQuestions(); } if (data.running && !contestRunning) { contestRunning = true; loadQuestions(); document.getElementById('output-console').innerText = ">>> CONTEST STARTED."; } else if (!data.running && contestRunning) { contestRunning = false; /* Avoid Alert here too */ document.getElementById('output-console').innerText = "TIME UP!"; } else if (!data.running) document.getElementById('question-list').innerHTML = `<div class='p-8 text-center text-gray-500'>AWAITING HOST</div>`; } catch (err) {} }
-        async function loadQuestions() { const res = await fetch('/api/questions'); const qs = await res.json(); window.contestQuestions = qs; document.getElementById('question-list').innerHTML = qs.map(q => { let bgClass = q.solved ? "bg-emerald-900/50 border-emerald-500" : "bg-gray-700 border-gray-500"; let statusIcon = q.solved ? `<span class="text-green-400 ml-2">✓</span>` : ""; return `<div id="q-card-${q.id}" data-solved="${q.solved}" class="question-card p-4 border-l-4 rounded mb-2 cursor-pointer hover:opacity-90 transition-all duration-200 ${bgClass}" onclick="selectQuestion(${q.id}, '${q.s_in}')"><div class="flex justify-between font-bold text-sm"><span class="text-white">${q.title} ${statusIcon}</span><span class="text-blue-300 text-xs px-2 py-0.5 bg-black/30 rounded border border-blue-900/50">${q.points} PTS</span></div><p class="text-xs text-gray-400 mt-1 truncate">${q.desc}</p></div>`; }).join(''); if(currentQuestionId) highlightCard(currentQuestionId); }
 
-        setInterval(syncState, 1000); setInterval(updateLeaderboard, 5000); setInterval(checkBroadcasts, 3000); syncState();
+        async function loadQuestions() { const res = await fetch('/api/questions'); const q = await res.json(); window.contestQuestions = q; renderList(); }
+        function renderList() { document.getElementById('question-list').innerHTML = window.contestQuestions.map(q => { const sel = q.id === currentQuestionId; const solved = q.solved; let cls = `question-card border-l-4 rounded mb-2 transition-all cursor-pointer ${sel ? 'bg-gray-800 border-yellow-400 shadow-xl ring-2 ring-yellow-500/20 p-6' : solved ? 'bg-emerald-900/40 border-emerald-500 p-4' : 'bg-gray-700 border-gray-500 hover:bg-gray-600 p-4'}`; let exp = sel ? `<div class="mt-4 pt-4 border-t border-gray-700 animate-fade-in"><div class="text-sm text-gray-300 font-mono whitespace-pre-wrap">${q.desc}</div><div class="grid grid-cols-2 gap-4 mt-6"><div><h4 class="text-xs font-bold text-gray-500 mb-1">Input</h4><div class="bg-black/30 p-2 text-xs font-mono text-green-400 border border-gray-700">${q.s_in||"-"}</div></div><div><h4 class="text-xs font-bold text-gray-500 mb-1">Output</h4><div class="bg-black/30 p-2 text-xs font-mono text-blue-400 border border-gray-700">${q.s_out||"-"}</div></div></div></div>` : `<p class="text-xs text-gray-400 mt-1 truncate">${q.desc}</p>`; return `<div class="${cls}" onclick="selectQuestion(${q.id}, '${q.s_in}')"><div class="flex justify-between font-bold text-sm"><span>${q.title} ${solved?'<span class="text-green-400">✓</span>':''}</span><span class="text-blue-300 text-xs px-2 py-0.5 bg-black/30 rounded border border-blue-900">${q.points} PTS</span></div>${exp}</div>`; }).join(''); }
+        function selectQuestion(id, s_in) { if(currentQuestionId!==null && currentQuestionId!==id) localStorage.setItem(`draft_${currentQuestionId}`, editor.getValue()); if(currentQuestionId===id) return; currentQuestionId=id; const sv = localStorage.getItem(`draft_${id}`); editor.setValue(sv || 'v\n> "Hello World" ,,,,,,,,,,, @'); document.getElementById('custom-input').value = (s_in && s_in!=='undefined' && s_in!=='None') ? s_in : ""; renderList(); }
+        async function sync() { try { const res = await fetch('/api/status'); const d = await res.json(); document.getElementById('contest-timer').innerText = formatTime(d.remaining); if (d.doc_id !== currentDocId) { currentDocId = d.doc_id; document.getElementById('nav-btn-syntax').innerText = d.doc_name; document.getElementById('doc-header-title').innerText = d.doc_name; document.getElementById('syntax-iframe').src = d.doc_id === 0 ? "about:blank" : "/get_active_document"; } if(d.q_ts > lastQUpdate) { lastQUpdate = d.q_ts; if(contestRunning) loadQuestions(); } if(d.running && !contestRunning) { contestRunning=true; loadQuestions(); } else if(!d.running && contestRunning) { contestRunning=false; } } catch(e){} }
+        setInterval(sync, 1000); setInterval(updateLeaderboard, 5000); setInterval(checkBroadcasts, 3000); sync();
     </script>
 </body>
 </html>

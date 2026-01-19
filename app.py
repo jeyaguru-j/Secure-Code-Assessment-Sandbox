@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response, stream_with_context
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response, stream_with_context, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
 from befunge_engine import BefungeInterpreter
 import time
 import os
@@ -12,6 +13,9 @@ app = Flask(__name__)
 app.secret_key = "SUPER_SECRET_CONTEST_KEY_CHANGE_THIS_IN_PROD"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///contest.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'static_files' 
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 db = SQLAlchemy(app)
 
 # --- MODELS ---
@@ -64,6 +68,13 @@ class Config(db.Model):
     duration_seconds = db.Column(db.Integer, default=3600)
     q_update_ts = db.Column(db.Float, default=0.0)
     is_frozen = db.Column(db.Boolean, default=False)
+
+class Document(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(200))
+    display_name = db.Column(db.String(200))
+    is_active = db.Column(db.Boolean, default=False)
+    upload_time = db.Column(db.DateTime, default=datetime.utcnow)
 
 def get_config():
     conf = Config.query.first()
@@ -121,7 +132,9 @@ def logout():
 def contest_ui():
     if 'user_id' not in session: return redirect('/login?role=participant')
     user = User.query.get(session['user_id'])
-    return render_template('index.html', user=user)
+    active_doc = Document.query.filter_by(is_active=True).first()
+    doc_name = active_doc.display_name if active_doc else "DOCUMENTS"
+    return render_template('index.html', user=user, doc_name=doc_name)
 
 # --- API ---
 
@@ -134,10 +147,16 @@ def get_status():
     if conf.is_running and remaining == 0:
         conf.is_running = False
         db.session.commit()
+    
+    active_doc = Document.query.filter_by(is_active=True).first()
+    doc_id = active_doc.id if active_doc else 0
+    
     return jsonify({
         'running': conf.is_running, 
         'remaining': int(remaining),
-        'q_ts': conf.q_update_ts
+        'q_ts': conf.q_update_ts,
+        'doc_id': doc_id,
+        'doc_name': active_doc.display_name if active_doc else "DOCUMENTS"
     })
 
 @app.route('/api/questions')
@@ -147,10 +166,7 @@ def get_questions():
     if not conf.is_running: return jsonify([])
     
     questions = Question.query.filter_by(is_visible=True).all()
-    
-    solved_ids = []
-    submissions = Submission.query.filter_by(user_id=session['user_id'], status='passed').all()
-    solved_ids = [s.question_id for s in submissions]
+    solved_ids = [s.question_id for s in Submission.query.filter_by(user_id=session['user_id'], status='passed').all()]
 
     return jsonify([{
         'id': q.id, 
@@ -158,36 +174,25 @@ def get_questions():
         'points': q.points, 
         'desc': q.description, 
         's_in': q.sample_input,
+        's_out': q.sample_output,
         'solved': q.id in solved_ids 
     } for q in questions])
 
 @app.route('/api/leaderboard')
 def get_leaderboard():
     conf = get_config()
-    
-    # FIX: ONLY FREEZE IF MANUALLY SET BY ADMIN
-    if conf.is_frozen and 'admin_id' not in session:
-        return jsonify({'frozen': True})
-    
+    if conf.is_frozen and 'admin_id' not in session: return jsonify({'frozen': True})
     users = User.query.order_by(User.score.desc(), User.total_time.asc()).limit(20).all()
-    
-    return jsonify([{
-        'username': u.username, 
-        'score': u.score, 
-        'time': u.total_time,
-        'warnings': (u.warnings or 0)
-    } for u in users])
+    return jsonify([{'username': u.username, 'score': u.score, 'time': u.total_time, 'warnings': (u.warnings or 0)} for u in users])
 
 @app.route('/api/report_violation', methods=['POST'])
 def report_violation():
     if 'user_id' not in session: return jsonify({})
     data = request.json or {}
-    reason = data.get('reason', 'Unknown')
     user = User.query.get(session['user_id'])
     if user:
         user.warnings = (user.warnings or 0) + 1
         db.session.commit()
-        print(f"VIOLATION: {user.username} | {reason}")
     return jsonify({'status': 'logged'})
 
 @app.route('/api/broadcasts')
@@ -212,7 +217,8 @@ def submit_code():
     data = request.json
     user_id, q_id, code = session['user_id'], data.get('question_id'), data.get('code')
     cases = TestCase.query.filter_by(question_id=q_id).all()
-    total_cases, passed_count, fail_reason = len(cases), 0, "Wrong Answer"
+    passed_count = 0
+    fail_reason = "Wrong Answer"
     
     for i, case in enumerate(cases):
         vm = BefungeInterpreter()
@@ -225,17 +231,17 @@ def submit_code():
             fail_reason = f"Failed Case #{i+1}"
             break
             
-    is_perfect = (passed_count == total_cases) and (total_cases > 0)
-    status_str, detail_str = ('passed' if is_perfect else 'failed'), ("✅ AC (All Passed)" if is_perfect else (f"⚠️ TLE" if fail_reason.startswith("TLE") else f"❌ {fail_reason} ({passed_count}/{total_cases})"))
+    is_perfect = (passed_count == len(cases)) and (len(cases) > 0)
+    status_str = 'passed' if is_perfect else 'failed'
+    detail_str = "✅ AC (All Passed)" if is_perfect else (f"⚠️ TLE" if fail_reason.startswith("TLE") else f"❌ {fail_reason} ({passed_count}/{len(cases)})")
     
     user = User.query.get(user_id)
-    q = Question.query.get(q_id)
     time_taken = time.time() - conf.start_time
     
     db.session.add(Submission(user_id=user_id, question_id=q_id, status=status_str, details=detail_str, solve_time=time_taken))
     
     if is_perfect and not (Submission.query.filter_by(user_id=user_id, question_id=q_id, status='passed').count() > 1):
-        user.score += q.points
+        user.score += Question.query.get(q_id).points
         user.total_time += time_taken
         
     db.session.commit()
@@ -246,7 +252,7 @@ def run_code():
     data, vm = request.json, BefungeInterpreter()
     return jsonify({'output': vm.run(data.get('code'), data.get('input', ""))})
 
-# --- ADMIN ---
+# --- ADMIN ROUTES ---
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -259,7 +265,7 @@ def admin():
         for h_in, h_out in zip(request.form.getlist('hidden_in[]'), request.form.getlist('hidden_out[]')):
             if h_in.strip() or h_out.strip(): db.session.add(TestCase(question_id=new_q.id, input_data=h_in, expected_output=h_out))
         db.session.commit()
-    return render_template('admin.html', questions=Question.query.all(), admin_name=session['username'], broadcasts=Broadcast.query.all(), config=get_config())
+    return render_template('admin.html', questions=Question.query.all(), admin_name=session['username'], broadcasts=Broadcast.query.all(), config=get_config(), documents=Document.query.all())
 
 @app.route('/admin/control', methods=['POST'])
 def admin_control():
@@ -347,6 +353,53 @@ def delete_broadcast(b_id):
     b = Broadcast.query.get(b_id)
     if b: db.session.delete(b); db.session.commit()
     return redirect('/admin')
+
+@app.route('/admin/document/upload', methods=['POST'])
+def upload_document():
+    if 'admin_id' not in session: return redirect('/')
+    if 'doc_file' in request.files and request.form['doc_name']:
+        f = request.files['doc_file']
+        if f.filename != '':
+            filename = secure_filename(f.filename)
+            f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            new_doc = Document(filename=filename, display_name=request.form['doc_name'], is_active=False)
+            db.session.add(new_doc)
+            db.session.commit()
+    return redirect('/admin')
+
+@app.route('/admin/document/toggle/<int:doc_id>', methods=['POST'])
+def toggle_document(doc_id):
+    if 'admin_id' not in session: return redirect('/')
+    Document.query.update({Document.is_active: False})
+    doc = Document.query.get(doc_id)
+    if doc: doc.is_active = True
+    db.session.commit()
+    return redirect('/admin')
+
+@app.route('/admin/document/hide/<int:doc_id>', methods=['POST'])
+def hide_document(doc_id):
+    if 'admin_id' not in session: return redirect('/')
+    doc = Document.query.get(doc_id)
+    if doc: doc.is_active = False
+    db.session.commit()
+    return redirect('/admin')
+
+@app.route('/admin/document/delete/<int:doc_id>', methods=['POST'])
+def delete_document(doc_id):
+    if 'admin_id' not in session: return redirect('/')
+    doc = Document.query.get(doc_id)
+    if doc:
+        try: os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
+        except: pass
+        db.session.delete(doc)
+        db.session.commit()
+    return redirect('/admin')
+
+@app.route('/get_active_document')
+def get_active_document():
+    doc = Document.query.filter_by(is_active=True).first()
+    if doc: return send_from_directory(app.config['UPLOAD_FOLDER'], doc.filename)
+    return "No Document is currently active."
 
 if __name__ == '__main__':
     with app.app_context(): db.create_all()

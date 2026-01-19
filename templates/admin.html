@@ -41,19 +41,49 @@
         </div>
 
         <div class="bg-gray-800 border border-gray-700 p-6 rounded mb-8 shadow-lg">
+            <h2 class="text-xl font-bold mb-4 text-cyan-400 border-b border-gray-700 pb-2">DOCUMENT MANAGER</h2>
+            <form action="/admin/document/upload" method="POST" enctype="multipart/form-data" class="flex gap-4 items-center mb-6 bg-black/20 p-4 rounded border border-gray-700">
+                <div class="flex-1"><label class="block text-gray-400 text-xs mb-1 uppercase font-bold">Document Name</label><input type="text" name="doc_name" required class="w-full bg-gray-900 text-white p-2 rounded border border-gray-600 text-sm focus:border-cyan-500 focus:outline-none" placeholder="e.g. Syntax Sheet v1"></div>
+                <div class="flex-1"><label class="block text-gray-400 text-xs mb-1 uppercase font-bold">PDF File</label><input type="file" name="doc_file" accept="application/pdf" required class="w-full bg-gray-900 text-white p-1 rounded border border-gray-600 text-sm file:bg-gray-700 file:text-white file:border-0 file:mr-2 file:px-2 file:py-1 file:rounded cursor-pointer"></div>
+                <button type="submit" class="bg-cyan-700 hover:bg-cyan-600 text-white px-6 py-2 rounded font-bold text-sm uppercase shadow-lg mt-5">UPLOAD</button>
+            </form>
+            <div class="overflow-hidden rounded border border-gray-700">
+                <table class="w-full text-left text-sm"><thead class="bg-black text-gray-400"><tr><th class="p-3">Display Name</th><th class="p-3">Filename</th><th class="p-3 text-center">Status</th><th class="p-3 w-48 text-right">Actions</th></tr></thead>
+                    <tbody>
+                        {% for doc in documents %}
+                        <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition-colors {{ 'bg-cyan-900/20' if doc.is_active else '' }}">
+                            <td class="p-3 font-bold text-white">{{ doc.display_name }}</td>
+                            <td class="p-3 text-gray-500 font-mono text-xs">{{ doc.filename }}</td>
+                            <td class="p-3 text-center">{% if doc.is_active %}<span class="text-xs bg-green-900 text-green-300 px-2 py-1 rounded border border-green-700 animate-pulse">VISIBLE</span>{% else %}<span class="text-xs text-gray-600">HIDDEN</span>{% endif %}</td>
+                            <td class="p-3 text-right flex justify-end gap-2">
+                                {% if doc.is_active %}<form action="/admin/document/hide/{{ doc.id }}" method="POST"><button class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-bold uppercase w-16 border border-gray-500">HIDE</button></form>
+                                {% else %}<form action="/admin/document/toggle/{{ doc.id }}" method="POST"><button class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs font-bold uppercase w-16 shadow-lg border border-cyan-500">SEND</button></form>{% endif %}
+                                <form action="/admin/document/delete/{{ doc.id }}" method="POST" onsubmit="return confirm('Delete document?');"><button class="bg-red-900/30 hover:bg-red-900 text-red-400 px-3 py-1 rounded text-xs font-bold uppercase border border-red-900/50">DEL</button></form>
+                            </td>
+                        </tr>
+                        {% else %}<tr><td colspan="4" class="p-6 text-center text-gray-500 italic">No documents uploaded.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded mb-8 shadow-lg">
             <h2 class="text-xl font-bold mb-4 text-pink-400 border-b border-gray-700 pb-2">SYSTEM BROADCASTS</h2>
             <form action="/admin/broadcast/add" method="POST" class="flex gap-4 mb-6"><input name="message" type="text" required class="flex-1 bg-gray-900 border border-gray-600 p-2 rounded focus:border-pink-500 focus:outline-none text-sm" placeholder="Type announcement here..."><button type="submit" class="bg-pink-700 hover:bg-pink-600 text-white px-4 py-2 rounded font-bold text-sm uppercase">Create</button></form>
-            <div class="overflow-hidden rounded border border-gray-700"><table class="w-full text-left text-sm"><thead class="bg-black text-gray-400"><tr><th class="p-3">Message Content</th><th class="p-3 w-48 text-right">Actions</th></tr></thead><tbody>{% for b in broadcasts %}<tr class="border-b border-gray-700 hover:bg-gray-700/50"><td class="p-3 text-white">{{ b.message }}</td><td class="p-3 text-right flex justify-end gap-2"><form action="/admin/broadcast/send/{{ b.id }}" method="POST"><button class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs font-bold uppercase flex items-center gap-1"><span>📡</span> Send</button></form><form action="/admin/broadcast/delete/{{ b.id }}" method="POST"><button class="bg-red-900/50 hover:bg-red-900 text-red-400 px-3 py-1 rounded text-xs font-bold uppercase">Delete</button></form></td></tr>{% else %}<tr><td colspan="2" class="p-4 text-center text-gray-500 italic">No messages created.</td></tr>{% endfor %}</tbody></table></div>
+            <div class="overflow-hidden rounded border border-gray-700">
+                <table class="w-full text-left text-sm"><thead class="bg-black text-gray-400"><tr><th class="p-3">Message Content</th><th class="p-3 w-48 text-right">Actions</th></tr></thead>
+                    <tbody>
+                        {% for b in broadcasts %}
+                        <tr class="border-b border-gray-700 hover:bg-gray-700/50"><td class="p-3 text-white">{{ b.message }}</td><td class="p-3 text-right flex justify-end gap-2"><form action="/admin/broadcast/send/{{ b.id }}" method="POST"><button class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs font-bold uppercase flex items-center gap-1"><span>📡</span> Send</button></form><form action="/admin/broadcast/delete/{{ b.id }}" method="POST"><button class="bg-red-900/50 hover:bg-red-900 text-red-400 px-3 py-1 rounded text-xs font-bold uppercase">Delete</button></form></td></tr>
+                        {% else %}<tr><td colspan="2" class="p-4 text-center text-gray-500 italic">No messages created.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="bg-gray-800 border border-gray-700 p-6 rounded mb-8 shadow-lg">
             <h2 class="text-xl font-bold mb-4 text-green-400 border-b border-gray-700 pb-2 flex justify-between">
-                <span>LIVE LEADERBOARD</span>
-                {% if config.is_frozen %}
-                    <span class="text-xs text-blue-400 font-bold border border-blue-500 px-2 rounded">❄️ FROZEN (Participants View)</span>
-                {% else %}
-                    <span class="text-xs text-gray-500 animate-pulse">● LIVE SYNC</span>
-                {% endif %}
+                <span>LIVE LEADERBOARD</span>{% if config.is_frozen %}<span class="text-xs text-blue-400 font-bold border border-blue-500 px-2 rounded">❄️ FROZEN (Participants View)</span>{% else %}<span class="text-xs text-gray-500 animate-pulse">● LIVE SYNC</span>{% endif %}
             </h2>
             <div class="overflow-y-auto max-h-64 custom-scrollbar bg-black/30 rounded border border-gray-700"><table class="w-full text-left text-sm"><thead class="bg-black text-gray-400 sticky top-0"><tr><th class="p-3">Rank</th><th class="p-3">User</th><th class="p-3 text-right">Score</th><th class="p-3 text-right pr-4">Time</th><th class="p-3 text-center text-red-400">Violations</th></tr></thead><tbody id="admin-leaderboard-body"><tr><td colspan="5" class="p-4 text-center text-gray-500">Waiting for data...</td></tr></tbody></table></div>
         </div>
@@ -84,18 +114,13 @@
                             <td class="p-3 text-xs text-gray-500 font-mono">{{ q.sample_input if q.sample_input else "(none)" }}</td>
                             <td class="p-3 text-right flex justify-end gap-2">
                                 <form action="/admin/question/toggle/{{ q.id }}" method="POST">
-                                    {% if q.is_visible %}
-                                        <button type="submit" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-bold uppercase w-16">HIDE</button>
-                                    {% else %}
-                                        <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs font-bold uppercase w-16 animate-pulse">SEND</button>
-                                    {% endif %}
+                                    {% if q.is_visible %}<button type="submit" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1 rounded text-xs font-bold uppercase w-16">HIDE</button>
+                                    {% else %}<button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs font-bold uppercase w-16 animate-pulse">SEND</button>{% endif %}
                                 </form>
                                 <form action="/admin/delete/{{ q.id }}" method="POST" onsubmit="return confirm('Delete?');"><button class="bg-red-900/30 hover:bg-red-900 text-red-400 px-3 py-1 rounded text-xs font-bold uppercase">DEL</button></form>
                             </td>
                         </tr>
-                        {% else %}
-                        <tr><td colspan="5" class="p-8 text-center text-gray-500 italic">Database is empty.</td></tr>
-                        {% endfor %}
+                        {% else %}<tr><td colspan="5" class="p-8 text-center text-gray-500 italic">Database is empty.</td></tr>{% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -104,13 +129,7 @@
 
     <script>
         function addTestCase() { document.getElementById('test-case-container').innerHTML += `<div class="grid grid-cols-2 gap-4 mt-2"><input name="hidden_in[]" class="w-full bg-gray-900 border border-gray-600 p-2 rounded text-sm" placeholder="Hidden In"><input name="hidden_out[]" class="w-full bg-gray-900 border border-gray-600 p-2 rounded text-sm" placeholder="Hidden Out"></div>`; }
-        
-        function formatLeaderboardTime(totalSeconds) {
-            const m = Math.floor(totalSeconds / 60);
-            const s = Math.floor(totalSeconds % 60);
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-
+        function formatLeaderboardTime(totalSeconds) { const m = Math.floor(totalSeconds / 60); const s = Math.floor(totalSeconds % 60); return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; }
         async function updateAdminLeaderboard() {
             try { const res = await fetch('/api/leaderboard'); const users = await res.json();
                 document.getElementById('admin-leaderboard-body').innerHTML = users.map((u, i) => {
