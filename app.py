@@ -11,7 +11,13 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "SUPER_SECRET_CONTEST_KEY_CHANGE_THIS_IN_PROD"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///contest.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///contest.db'
+# Use the Cloud Database URL if available, otherwise fall back to local SQLite for testing
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1) # Fix for some cloud providers
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///contest.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static_files' 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
