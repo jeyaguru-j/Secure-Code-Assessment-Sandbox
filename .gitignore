@@ -1,8 +1,27 @@
+# --- Python & Virtual Env ---
 venv/
-instance/
-*.db
 __pycache__/
+*.pyc
+
+# --- Database & Local Data ---
+*.db
+instance/
+*.sqlite3
+
+# --- Sensitive Seed Data (Contains Passwords) ---
+users.json
 admins.json
 participants.json
-instance/contest.db
-.env
+*.json
+
+# --- Uploaded Files & Exports ---
+static_files/
+befunge_detailed_results.csv
+
+# --- Executables ---
+cloudflared.exe
+*.exe
+
+# --- Editor Junk ---
+.vscode/
+.idea/

@@ -11,15 +11,19 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "SUPER_SECRET_CONTEST_KEY_CHANGE_THIS_IN_PROD"
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///contest.db'
-# Use the Cloud Database URL if available, otherwise fall back to local SQLite for testing
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1) # Fix for some cloud providers
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///contest.db'
+# --- DATABASE CONFIG ---
+# Ensure the password 'jey' is correct
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:jey@localhost/befunge_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'static_files' 
+
+# --- PATH CONFIGURATION (THE FIX) ---
+# This gets the exact folder where app.py is located (e.g., C:\Users\Jaishankar\Desktop\BefungeWeb)
+basedir = os.path.abspath(os.path.dirname(__file__))
+# This creates the absolute path to static_files
+app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static_files')
+
+# Ensure the folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
@@ -28,12 +32,12 @@ db = SQLAlchemy(app)
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(255))
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
-    password_hash = db.Column(db.String(128)) 
+    password_hash = db.Column(db.String(255)) 
     score = db.Column(db.Integer, default=0)
     total_time = db.Column(db.Float, default=0.0)
     warnings = db.Column(db.Integer, default=0) 
@@ -360,17 +364,37 @@ def delete_broadcast(b_id):
     if b: db.session.delete(b); db.session.commit()
     return redirect('/admin')
 
+# --- DOCUMENT MANAGEMENT (UPDATED FOR ABSOLUTE PATHS) ---
+
 @app.route('/admin/document/upload', methods=['POST'])
 def upload_document():
     if 'admin_id' not in session: return redirect('/')
+    
+    # 1. Debug Print (Check Server Console)
+    print("--- UPLOAD REQUEST RECEIVED ---")
+    print(f"Form Data: {request.form}")
+    print(f"Files: {request.files}")
+
     if 'doc_file' in request.files and request.form['doc_name']:
         f = request.files['doc_file']
         if f.filename != '':
-            filename = secure_filename(f.filename)
-            f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            new_doc = Document(filename=filename, display_name=request.form['doc_name'], is_active=False)
-            db.session.add(new_doc)
-            db.session.commit()
+            try:
+                filename = secure_filename(f.filename)
+                # 2. Use the absolute upload path
+                save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                print(f"Saving to: {save_path}")
+                
+                f.save(save_path)
+                
+                new_doc = Document(filename=filename, display_name=request.form['doc_name'], is_active=False)
+                db.session.add(new_doc)
+                db.session.commit()
+                print("--- UPLOAD SUCCESS ---")
+            except Exception as e:
+                print(f"--- UPLOAD ERROR: {e} ---")
+    else:
+        print("--- MISSING FILE OR NAME ---")
+        
     return redirect('/admin')
 
 @app.route('/admin/document/toggle/<int:doc_id>', methods=['POST'])
@@ -404,7 +428,10 @@ def delete_document(doc_id):
 @app.route('/get_active_document')
 def get_active_document():
     doc = Document.query.filter_by(is_active=True).first()
-    if doc: return send_from_directory(app.config['UPLOAD_FOLDER'], doc.filename)
+    if doc: 
+        # Debug print to ensure path is correct
+        print(f"Serving Document: {os.path.join(app.config['UPLOAD_FOLDER'], doc.filename)}")
+        return send_from_directory(app.config['UPLOAD_FOLDER'], doc.filename)
     return "No Document is currently active."
 
 if __name__ == '__main__':

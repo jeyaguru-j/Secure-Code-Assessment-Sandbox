@@ -12,9 +12,12 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #111827; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+        
         .CodeMirror { height: 100% !important; font-family: 'Courier New', Courier, monospace; font-size: 16px; }
+
         .resizer-v { width: 4px; cursor: col-resize; background-color: #374151; transition: background 0.2s; z-index: 50; flex-shrink: 0; }
         .resizer-v:hover, .resizer-v.resizing { background-color: #3B82F6; }
+        
         .resizer-h { height: 4px; cursor: row-resize; background-color: #374151; transition: background 0.2s; z-index: 50; flex-shrink: 0; }
         .resizer-h:hover, .resizer-h.resizing { background-color: #3B82F6; }
     </style>
@@ -36,7 +39,7 @@
     </div>
 
     <div id="broadcast-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex justify-center items-center backdrop-blur-sm">
-        <div class="bg-gray-800 border-2 border-pink-500 rounded-lg shadow-lg max-w-lg w-full p-6 text-center">
+        <div class="bg-gray-800 border-2 border-pink-500 rounded-lg shadow-lg max-w-lg w-full p-6 text-center animate-bounce-in">
             <div class="text-5xl mb-4">📢</div><h2 class="text-2xl font-bold text-white mb-2 uppercase">System Message</h2>
             <div id="broadcast-content" class="text-pink-300 text-lg font-mono mb-6 py-4 border-y border-gray-700"></div>
             <button onclick="closeBroadcast()" class="bg-pink-600 hover:bg-pink-500 text-white px-8 py-3 rounded font-bold w-full">ACKNOWLEDGE</button>
@@ -60,6 +63,7 @@
     </div>
 
     <div id="main-app" class="hidden flex-col h-full bg-gray-900">
+        
         <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-md z-10 shrink-0">
             <div class="flex items-center gap-4">
                 <h1 class="text-xl font-bold text-green-400 tracking-wider">>> BEFUNGE_ROYALE_93</h1>
@@ -82,8 +86,9 @@
 
         <div class="flex-1 flex overflow-hidden">
             <div id="main-stage" class="flex-1 flex relative min-w-[400px]">
+                
                 <div id="view-contest" class="flex w-full h-full absolute inset-0">
-                    <div id="panel-left" class="bg-gray-800 flex flex-col min-w-[250px]" style="width: 40%;">
+                    <div id="panel-left" class="bg-gray-800 flex flex-col min-w-[250px]" style="width: 30%;">
                         <div class="flex border-b border-gray-700 shrink-0">
                             <button onclick="switchTab('questions')" id="tab-btn-questions" class="flex-1 py-3 text-sm font-bold text-blue-400 bg-gray-800 border-b-2 border-blue-500 transition-colors">PROBLEM SET</button>
                             <button onclick="switchTab('submissions')" id="tab-btn-submissions" class="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-900 border-b-2 border-transparent transition-colors">MY SUBMISSIONS</button>
@@ -111,7 +116,9 @@
                 </div>
                 <iframe id="practice-frame" src="/practice" class="hidden w-full h-full border-0 absolute inset-0 bg-[#1a1a1a]"></iframe>
             </div>
+
             <div id="resizer-3" class="resizer-v"></div>
+
             <div id="panel-right" class="flex flex-col bg-gray-900 border-l border-gray-700 min-w-[200px]" style="width: 30%;">
                 <div id="view-leaderboard" class="flex flex-col h-full">
                     <div class="p-4 bg-gray-800 border-b border-gray-700 shadow-md z-10 flex items-center justify-between shrink-0"><h3 class="text-sm font-bold text-yellow-500 uppercase tracking-widest flex items-center gap-2"><span>🏆</span> Global Standings</h3><span class="text-[10px] bg-gray-700 text-gray-300 px-2 py-1 rounded animate-pulse">LIVE</span></div>
@@ -126,22 +133,37 @@
     </div>
 
     <script>
+        // --- FIX: Store current username to isolate drafts ---
+        const currentUsername = "{{ user.username }}";
+
         document.addEventListener('DOMContentLoaded', () => {
             const resizer1 = document.getElementById('resizer-1'), resizer2 = document.getElementById('resizer-2'), resizer3 = document.getElementById('resizer-3');
-            const panelLeft = document.getElementById('panel-left'), panelMiddle = document.getElementById('panel-middle'), panelRight = document.getElementById('panel-right'), panelEditor = document.getElementById('panel-editor'), mainStage = document.getElementById('main-stage');
+            const panelLeft = document.getElementById('panel-left'), panelMiddle = document.getElementById('panel-middle'), panelRight = document.getElementById('panel-right'), panelEditor = document.getElementById('panel-editor');
+
             const makeResizable = (resizer, prevEl, nextEl, direction) => {
                 let startX, startY, startWidthLeft, startHeightTop, containerSize;
                 const onDown = (e) => { e.preventDefault(); resizer.classList.add('resizing'); startX = e.clientX; startY = e.clientY; if(type === 'LR') { const parentW = prevEl.parentElement.getBoundingClientRect().width; startWidthLeft = (prevEl.getBoundingClientRect().width / parentW) * 100; containerSize = parentW; } else { const parentH = prevEl.parentElement.getBoundingClientRect().height; startHeightTop = (prevEl.getBoundingClientRect().height / parentH) * 100; containerSize = parentH; } document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); };
                 const onMove = (e) => { if (direction === 'H') { const dxPx = e.clientX - startX; const newLeft = startWidthLeft + ((dxPx / containerSize) * 100); if (newLeft > 10 && newLeft < 90) prevEl.style.width = `${newLeft}%`; } else { const dyPx = e.clientY - startY; const newTop = startHeightTop + ((dyPx / containerSize) * 100); if (newTop > 20 && newTop < 80) prevEl.style.height = `${newTop}%`; } };
                 const onUp = () => { resizer.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; resizer.addEventListener('mousedown', onDown);
             };
-            resizer1.addEventListener('mousedown', (e) => { e.preventDefault(); const startX = e.clientX; const parentW = panelLeft.parentElement.getBoundingClientRect().width; const startLeftW = (panelLeft.getBoundingClientRect().width / parentW) * 100; const onMove = (em) => { const dx = em.clientX - startX; const newLeft = startLeftW + ((dx / parentW) * 100); if (newLeft > 15 && newLeft < 60) panelLeft.style.width = `${newLeft}%`; }; const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); });
+
+            resizer1.addEventListener('mousedown', (e) => { e.preventDefault(); const startX = e.clientX; const parentW = panelLeft.parentElement.getBoundingClientRect().width; const startLeftW = (panelLeft.getBoundingClientRect().width / parentW) * 100; 
+                const onMove = (em) => { const dx = em.clientX - startX; const newLeft = startLeftW + ((dx / parentW) * 100); if (newLeft > 15 && newLeft < 60) panelLeft.style.width = `${newLeft}%`; };
+                const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+            });
+
             const setupVertical = (resizer, target) => { let startY, startH, parentH; resizer.addEventListener('mousedown', (e) => { e.preventDefault(); resizer.classList.add('resizing'); startY = e.clientY; parentH = target.parentElement.getBoundingClientRect().height; startH = (target.getBoundingClientRect().height / parentH) * 100; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); }); const onMove = (e) => { const dy = e.clientY - startY; const newH = startH + ((dy / parentH) * 100); if (newH > 20 && newH < 80) target.style.height = `${newH}%`; }; const onUp = () => { resizer.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; }; setupVertical(resizer2, panelEditor);
-            resizer3.addEventListener('mousedown', (e) => { e.preventDefault(); resizer3.classList.add('resizing'); const startX = e.clientX; const parentW = document.body.getBoundingClientRect().width; const startRightW = (panelRight.getBoundingClientRect().width / parentW) * 100; const onMove = (em) => { const dx = em.clientX - startX; const newRightW = startRightW - ((dx / parentW) * 100); if (newRightW > 15 && newRightW < 50) panelRight.style.width = `${newRightW}%`; }; const onUp = () => { resizer3.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); });
+
+            resizer3.addEventListener('mousedown', (e) => { e.preventDefault(); resizer3.classList.add('resizing'); const startX = e.clientX; const parentW = document.body.getBoundingClientRect().width; const startRightW = (panelRight.getBoundingClientRect().width / parentW) * 100; 
+                const onMove = (em) => { const dx = em.clientX - startX; const newRightW = startRightW - ((dx / parentW) * 100); if (newRightW > 15 && newRightW < 50) panelRight.style.width = `${newRightW}%`; }; 
+                const onUp = () => { resizer3.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if(editor) editor.refresh(); }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); 
+            });
         });
 
+        // --- APP LOGIC ---
         var editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), { lineNumbers: false, theme: "monokai", mode: "text", lineWrapping: true });
         let currentQuestionId = null, contestRunning = false, contestQuestions = [], lastQUpdate = 0, currentDocId = 0, isProctoringActive = false;
+
         function formatTime(s) { if (s <= 0) return "ENDED"; const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=Math.floor(s%60); return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
         function formatLeaderboardTime(s) { const m=Math.floor(s/60), sec=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
         function toggleSyntax() { const lb = document.getElementById('view-leaderboard'), syn = document.getElementById('view-syntax'), btn = document.getElementById('nav-btn-syntax'); if (syn.classList.contains('hidden')) { lb.classList.add('hidden'); syn.classList.remove('hidden'); syn.classList.add('flex'); btn.className = "flex-1 py-3 text-sm font-bold text-cyan-400 bg-gray-800 border-b-2 border-cyan-500 transition-colors uppercase"; } else { lb.classList.remove('hidden'); syn.classList.add('hidden'); syn.classList.remove('flex'); btn.className = "flex-1 py-3 text-sm font-bold text-cyan-500 bg-gray-900 border-b-2 border-transparent hover:bg-gray-800 transition-colors uppercase"; } }
@@ -156,38 +178,44 @@
         function closeResult() { document.getElementById('result-modal').classList.add('hidden'); }
         function runCode() { const c = editor.getValue(), i = document.getElementById('custom-input').value; if ((c.includes('&') || c.includes('~')) && !i.trim()) document.getElementById('confirm-modal').classList.remove('hidden'); else executeRun(); }
         function resolveRunConfirm(go) { document.getElementById('confirm-modal').classList.add('hidden'); if(go) executeRun(); else document.getElementById('custom-input').focus(); }
-        async function executeRun() { const c = editor.getValue(), i = document.getElementById('custom-input').value; if(currentQuestionId!==null) localStorage.setItem(`draft_${currentQuestionId}`, c); document.getElementById('output-console').innerText = "Running..."; try { const res = await fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: c, input: i}) }); const d = await res.json(); document.getElementById('output-console').innerText = d.output; } catch(e) { document.getElementById('output-console').innerText = "Error"; } }
-        async function submitCode() { if(!contestRunning || !currentQuestionId) return alert("Select a problem!"); const c = editor.getValue(); localStorage.setItem(`draft_${currentQuestionId}`, c); try { const res = await fetch('/api/submit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question_id: currentQuestionId, code: c}) }); const d = await res.json(); if(d.status === 'passed') { showResult("PASSED", "Points Awarded!", true); document.getElementById('score-display').innerText = `Score: ${d.new_score}`; updateLeaderboard(); loadQuestions(); } else { showResult("FAILED", d.details, false); } } catch(e) {} }
+        
+        async function executeRun() { 
+            const c = editor.getValue(), i = document.getElementById('custom-input').value; 
+            // FIX: Save with USERNAME key
+            if(currentQuestionId!==null) localStorage.setItem(`draft_${currentUsername}_${currentQuestionId}`, c); 
+            document.getElementById('output-console').innerText = "Running..."; 
+            try { const res = await fetch('/api/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: c, input: i}) }); const d = await res.json(); document.getElementById('output-console').innerText = d.output; } catch(e) { document.getElementById('output-console').innerText = "Error"; } 
+        }
+
+        async function submitCode() { 
+            if(!contestRunning || !currentQuestionId) return alert("Select a problem!"); 
+            const c = editor.getValue(); 
+            // FIX: Save with USERNAME key
+            localStorage.setItem(`draft_${currentUsername}_${currentQuestionId}`, c); 
+            try { const res = await fetch('/api/submit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question_id: currentQuestionId, code: c}) }); const d = await res.json(); if(d.status === 'passed') { showResult("PASSED", "Points Awarded!", true); document.getElementById('score-display').innerText = `Score: ${d.new_score}`; updateLeaderboard(); loadQuestions(); } else { showResult("FAILED", d.details, false); } } catch(e) {} 
+        }
+
         async function updateLeaderboard() { const res = await fetch('/api/leaderboard'); const d = await res.json(); const b = document.getElementById('leaderboard-body'); if(d.frozen) { b.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-blue-300 font-bold uppercase tracking-widest animate-pulse">❄️ Frozen ❄️</td></tr>`; return; } b.innerHTML = d.map((u,i) => `<tr class="border-b border-gray-800 hover:bg-gray-800"><td class="p-3 pl-4 text-gray-400">#${i+1}</td><td class="p-3 font-bold text-white">${u.username}</td><td class="p-3 text-right font-bold text-green-400">${u.score}</td><td class="p-3 text-right pr-4 text-gray-500 font-mono text-xs">${formatLeaderboardTime(u.time)}</td></tr>`).join(''); }
         async function loadSubmissions() { const res = await fetch('/api/my_submissions'); const s = await res.json(); document.getElementById('submission-list').innerHTML = s.map(x => `<tr><td class="p-2 text-gray-500">${x.time}</td><td class="p-2">${x.title}</td><td class="p-2 text-right ${x.status==='passed'?'text-green-400':'text-red-400'}">${x.details}</td></tr>`).join(''); }
         
-        // --- UPDATED BROADCAST LOGIC ---
-        async function checkBroadcasts() { 
-            const res = await fetch('/api/broadcasts'); 
-            const msgs = await res.json(); 
-            for (let msg of msgs) { 
-                const key = `broadcast_${msg.id}`; 
-                const lastSeenTime = localStorage.getItem(key);
-                // Show if never seen OR if server time > stored time (re-sent)
-                if (!lastSeenTime || parseFloat(lastSeenTime) < msg.sent_at) { 
-                    document.getElementById('broadcast-content').innerText = msg.message; 
-                    document.getElementById('broadcast-modal').classList.remove('hidden'); 
-                    window.currentBroadcast = msg; 
-                    break; 
-                } 
-            } 
-        }
-        function closeBroadcast() { 
-            document.getElementById('broadcast-modal').classList.add('hidden'); 
-            if(window.currentBroadcast) {
-                // Store the exact timestamp of this broadcast
-                localStorage.setItem(`broadcast_${window.currentBroadcast.id}`, window.currentBroadcast.sent_at); 
-            }
-        }
+        async function checkBroadcasts() { try { const res = await fetch('/api/broadcasts'); const msgs = await res.json(); for (let msg of msgs) { const key = `broadcast_${msg.id}`; const lastSeenTime = localStorage.getItem(key); if (!lastSeenTime || parseFloat(lastSeenTime) < msg.sent_at) { document.getElementById('broadcast-content').innerText = msg.message; document.getElementById('broadcast-modal').classList.remove('hidden'); window.currB = msg; break; } } } catch(e) {} }
+        function closeBroadcast() { document.getElementById('broadcast-modal').classList.add('hidden'); if(window.currB) { localStorage.setItem(`broadcast_${window.currB.id}`, window.currB.sent_at); } }
 
         async function loadQuestions() { const res = await fetch('/api/questions'); const q = await res.json(); window.contestQuestions = q; renderList(); }
         function renderList() { document.getElementById('question-list').innerHTML = window.contestQuestions.map(q => { const sel = q.id === currentQuestionId; const solved = q.solved; let cls = `question-card border-l-4 rounded mb-2 transition-all cursor-pointer ${sel ? 'bg-gray-800 border-yellow-400 shadow-xl ring-2 ring-yellow-500/20 p-6' : solved ? 'bg-emerald-900/40 border-emerald-500 p-4' : 'bg-gray-700 border-gray-500 hover:bg-gray-600 p-4'}`; let exp = sel ? `<div class="mt-4 pt-4 border-t border-gray-700 animate-fade-in"><div class="text-sm text-gray-300 font-mono whitespace-pre-wrap">${q.desc}</div><div class="grid grid-cols-2 gap-4 mt-6"><div><h4 class="text-xs font-bold text-gray-500 mb-1">Input</h4><div class="bg-black/30 p-2 text-xs font-mono text-green-400 border border-gray-700">${q.s_in||"-"}</div></div><div><h4 class="text-xs font-bold text-gray-500 mb-1">Output</h4><div class="bg-black/30 p-2 text-xs font-mono text-blue-400 border border-gray-700">${q.s_out||"-"}</div></div></div></div>` : `<p class="text-xs text-gray-400 mt-1 truncate">${q.desc}</p>`; return `<div class="${cls}" onclick="selectQuestion(${q.id}, '${q.s_in}')"><div class="flex justify-between font-bold text-sm"><span>${q.title} ${solved?'<span class="text-green-400">✓</span>':''}</span><span class="text-blue-300 text-xs px-2 py-0.5 bg-black/30 rounded border border-blue-900">${q.points} PTS</span></div>${exp}</div>`; }).join(''); }
-        function selectQuestion(id, s_in) { if(currentQuestionId!==null && currentQuestionId!==id) localStorage.setItem(`draft_${currentQuestionId}`, editor.getValue()); if(currentQuestionId===id) return; currentQuestionId=id; const sv = localStorage.getItem(`draft_${id}`); editor.setValue(sv || 'v\n> "Hello World" ,,,,,,,,,,, @'); document.getElementById('custom-input').value = (s_in && s_in!=='undefined' && s_in!=='None') ? s_in : ""; renderList(); }
+        
+        function selectQuestion(id, s_in) { 
+            // FIX: Save previous draft with USERNAME
+            if(currentQuestionId!==null && currentQuestionId!==id) localStorage.setItem(`draft_${currentUsername}_${currentQuestionId}`, editor.getValue()); 
+            if(currentQuestionId===id) return; 
+            currentQuestionId=id; 
+            // FIX: Load new draft with USERNAME
+            const sv = localStorage.getItem(`draft_${currentUsername}_${id}`); 
+            editor.setValue(sv || 'v\n> "Hello World" ,,,,,,,,,,, @'); 
+            document.getElementById('custom-input').value = (s_in && s_in!=='undefined' && s_in!=='None') ? s_in : ""; 
+            renderList(); 
+        }
+
         async function sync() { try { const res = await fetch('/api/status'); const d = await res.json(); document.getElementById('contest-timer').innerText = formatTime(d.remaining); if (d.doc_id !== currentDocId) { currentDocId = d.doc_id; document.getElementById('nav-btn-syntax').innerText = d.doc_name; document.getElementById('doc-header-title').innerText = d.doc_name; document.getElementById('syntax-iframe').src = d.doc_id === 0 ? "about:blank" : "/get_active_document"; } if(d.q_ts > lastQUpdate) { lastQUpdate = d.q_ts; if(contestRunning) loadQuestions(); } if(d.running && !contestRunning) { contestRunning=true; loadQuestions(); } else if(!d.running && contestRunning) { contestRunning=false; } } catch(e){} }
         setInterval(sync, 1000); setInterval(updateLeaderboard, 5000); setInterval(checkBroadcasts, 3000); sync();
     </script>

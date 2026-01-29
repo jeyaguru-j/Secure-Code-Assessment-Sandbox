@@ -1,46 +1,93 @@
 import json
 import os
 from werkzeug.security import generate_password_hash
-from app import app, db, User, Admin  # We will import models from app.py
+from app import app, db, User, Admin, Submission
 
-def seed_data():
+def full_sync_auth():
     with app.app_context():
-        # 1. Create Tables if they don't exist (includes new Admin table)
-        db.create_all()
+        print("--- STARTING FULL SYNC (JSON <-> DB) ---")
 
-        # --- SEED ADMINS ---
+        # ==========================================
+        # 1. SYNC ADMINS
+        # ==========================================
         if os.path.exists('admins.json'):
             with open('admins.json', 'r') as f:
-                admins = json.load(f)
-                print(f"Loading {len(admins)} admins...")
-                
-                for username, password in admins.items():
-                    # Check if exists
-                    if not Admin.query.filter_by(username=username).first():
-                        hashed = generate_password_hash(password)
-                        new_admin = Admin(username=username, password_hash=hashed)
-                        db.session.add(new_admin)
-        
-        # --- SEED PARTICIPANTS ---
+                admins_data = json.load(f)
+            
+            json_admin_names = set(admins_data.keys())
+            db_admins = Admin.query.all()
+
+            # A. DELETE Admins not in JSON
+            for admin in db_admins:
+                if admin.username not in json_admin_names:
+                    print(f" [-] Deleting removed Admin: {admin.username}")
+                    db.session.delete(admin)
+            
+            # B. ADD or UPDATE Admins from JSON
+            for username, password in admins_data.items():
+                existing = Admin.query.filter_by(username=username).first()
+                hashed = generate_password_hash(password)
+                if existing:
+                    existing.password_hash = hashed
+                    print(f" [~] Updated Admin: {username}")
+                else:
+                    new_admin = Admin(username=username, password_hash=hashed)
+                    db.session.add(new_admin)
+                    print(f" [+] Created Admin: {username}")
+
+        # ==========================================
+        # 2. SYNC PARTICIPANTS
+        # ==========================================
         if os.path.exists('participants.json'):
             with open('participants.json', 'r') as f:
-                users = json.load(f)
-                print(f"Loading {len(users)} participants...")
-                
-                for username, password in users.items():
-                    # Check if exists
-                    user = User.query.filter_by(username=username).first()
-                    hashed = generate_password_hash(password)
-                    if not user:
-                        # Create new user with 0 score
-                        new_user = User(username=username, password_hash=hashed, score=0)
-                        db.session.add(new_user)
-                    else:
-                        # Update password if user exists (resetting db)
-                        user.password_hash = hashed
+                users_data = json.load(f)
 
-        db.session.commit()
-        print("Database seeding complete!")
+            json_user_names = set(users_data.keys())
+            db_users = User.query.all()
+
+            # A. DELETE Participants not in JSON
+            for user in db_users:
+                if user.username not in json_user_names:
+                    print(f" [-] Deleting removed Participant: {user.username}")
+                    # CRITICAL: Delete their submissions first to avoid DB errors
+                    Submission.query.filter_by(user_id=user.id).delete()
+                    db.session.delete(user)
+
+            # B. ADD or UPDATE Participants from JSON
+            for username, password in users_data.items():
+                existing = User.query.filter_by(username=username).first()
+                hashed = generate_password_hash(password)
+                
+                if existing:
+                    # Update password, keep score/time intact
+                    existing.password_hash = hashed
+                    print(f" [~] Verified/Updated Participant: {username}")
+                else:
+                    # Create new
+                    new_user = User(
+                        username=username, 
+                        password_hash=hashed, 
+                        score=0, 
+                        total_time=0.0, 
+                        warnings=0
+                    )
+                    db.session.add(new_user)
+                    print(f" [+] Created Participant: {username}")
+
+        # ==========================================
+        # 3. SAVE CHANGES
+        # ==========================================
+        try:
+            db.session.commit()
+            print("\n--- SUCCESS: Database is now exactly like your JSON files. ---")
+        except Exception as e:
+            db.session.rollback()
+            print(f"\n--- ERROR: Sync failed: {e} ---")
 
 if __name__ == "__main__":
-    seed_data()
+    # Safety Prompt
+    confirm = input("WARNING: This will DELETE users/admins not found in the JSON files.\nType 'yes' to proceed: ")
+    if confirm.lower() == 'yes':
+        full_sync_auth()
+    else:
+        print("Operation cancelled.")
